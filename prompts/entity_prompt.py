@@ -16,7 +16,13 @@ USER QUERY:
 {user_query}
 
 OUTPUT FORMAT:
-Return only the requested entity list in this format:
+Return only the requested entity list in this exact format.
 
-<entity_type>: []
+Dates: []
+People: []
+Money: []
+Deadlines: []
+
+Preserve the capitalization exactly as shown above.
+Only return the entity type asked in USER QUERY.
 """
