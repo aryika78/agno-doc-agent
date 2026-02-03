@@ -8,10 +8,10 @@ STRICT RULES:
 4. Follow the output format EXACTLY.
 
 TASK:
-Find the exact line or phrase in the document that contains the answer to the USER QUERY.
-Then return that line as the answer.
+Search the document for any line or fragment that contains information relevant to the USER QUERY.
+Extract the value from that line and present it as the answer.
 
-If no relevant line exists, say:
+If no relevant information is present, say:
 "Answer not found in document."
 
 DOCUMENT:

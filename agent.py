@@ -8,7 +8,7 @@ from tools.classifier_tool import doc_classifier_tool
 def route_query(user_query: str, document_text: str) -> str:
     q = user_query.lower()
 
-    if "summary" in q or "summarize" in q:
+    if any(word in q for word in ["summary", "summarize", "about", "overview"]):
         return smart_summary_tool(document_text)
 
     elif "json" in q or "extract" in q:
