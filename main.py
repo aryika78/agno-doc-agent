@@ -1,9 +1,8 @@
 from agent import route_query
+from document_loader import load_document
 
-document_text = """
-John Doe signed a contract on 12th Jan 2024 with ABC Corp.
-The payment amount is $5000 due before 30th Jan 2024.
-"""
+path = input("Enter document path (pdf/txt/docx): ").strip().strip('"')
+document_text = load_document(path)
 
 while True:
     user_query = input("\nAsk something about the document (or type exit): ")
