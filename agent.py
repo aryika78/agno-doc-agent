@@ -14,7 +14,10 @@ def route_query(user_query: str, document_text: str) -> str:
     elif "json" in q or "extract" in q:
         return json_extractor_tool(document_text)
 
-    elif "date" in q or "people" in q or "money" in q or "deadline" in q:
+    elif any(word in q for word in [
+    "date", "people", "person", "money", "amount",
+    "deadline", "organization", "organizations",
+    "location", "locations"]):
         return entity_finder_tool(document_text, user_query)
 
     elif "classify" in q or "type" in q:
