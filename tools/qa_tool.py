@@ -14,7 +14,7 @@ def qa_from_doc_tool(document_text: str, user_query: str) -> str:
     )
 
     response = client.chat.completions.create(
-        model="YOUR_DEPLOYMENT_NAME",
+        model="gpt-4.1-nano",
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )

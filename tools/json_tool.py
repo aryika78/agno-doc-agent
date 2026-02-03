@@ -11,7 +11,7 @@ def json_extractor_tool(document_text: str) -> str:
     prompt = JSON_PROMPT.format(document_text=document_text)
 
     response = client.chat.completions.create(
-        model="YOUR_DEPLOYMENT_NAME",
+        model="gpt-4.1-nano",
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )
