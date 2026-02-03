@@ -8,7 +8,11 @@ STRICT RULES:
 4. Follow the output format EXACTLY.
 
 TASK:
-Answer the user's question using only the document.
+Find the exact line or phrase in the document that contains the answer to the USER QUERY.
+Then return that line as the answer.
+
+If no relevant line exists, say:
+"Answer not found in document."
 
 DOCUMENT:
 {document_text}
