@@ -1,6 +1,6 @@
 from openai import AzureOpenAI
 from prompts.qa_prompt import QA_PROMPT
-
+from azure_client import client, DEPLOYMENT_NAME
 client = AzureOpenAI(
     api_key="YOUR_AZURE_KEY",
     api_version="2024-02-15-preview",
@@ -14,7 +14,7 @@ def qa_from_doc_tool(document_text: str, user_query: str) -> str:
     )
 
     response = client.chat.completions.create(
-        model="gpt-4.1-nano",
+        model=DEPLOYMENT_NAME,
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )
