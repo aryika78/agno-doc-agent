@@ -7,18 +7,16 @@ STRICT RULES:
 3. Follow the output format EXACTLY.
 
 TASK:
-Identify and list all occurrences of:
-- Dates
-- Person names
-- Money amounts
-- Deadlines
+Based on the USER QUERY, extract ONLY the requested entity type.
 
 DOCUMENT:
 {document_text}
 
+USER QUERY:
+{user_query}
+
 OUTPUT FORMAT:
-Dates: []
-People: []
-Money: []
-Deadlines: []
+Return only the requested entity list in this format:
+
+<entity_type>: []
 """

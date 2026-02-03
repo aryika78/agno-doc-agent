@@ -14,12 +14,12 @@ DOCUMENT:
 {document_text}
 
 OUTPUT FORMAT:
-{
+{{
   "people": [],
   "dates": [],
   "amounts": [],
   "locations": [],
   "organizations": [],
   "deadlines": []
-}
+}}
 """
