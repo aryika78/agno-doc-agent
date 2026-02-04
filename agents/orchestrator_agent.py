@@ -12,7 +12,7 @@ class OrchestratorAgent:
         self.extractor = ExtractionAgent(document_text)
         self.composer = ResponseComposerAgent()
 
-    def decide_agents(self, user_query: str) -> list[str]:
+    def classify_intent(self, user_query: str) -> list[str]:
         prompt = ORCHESTRATOR_PROMPT.format(user_query=user_query)
 
         response = client.chat.completions.create(
@@ -21,24 +21,25 @@ class OrchestratorAgent:
             temperature=0
         )
 
-        decision = response.choices[0].message.content.strip().lower()
-        return [a.strip() for a in decision.split(",")]
+        intents = response.choices[0].message.content.strip().lower()
+        return [i.strip() for i in intents.split(",")]
 
     def handle(self, user_query: str) -> str:
         outputs = []
-        agents_to_call = self.decide_agents(user_query)
+        intents = self.classify_intent(user_query)
 
-        for agent in agents_to_call:
-            if agent == "document_analyst":
-                if "summarize" in user_query.lower():
-                    outputs.append(self.analyst.summarize(user_query))
-                else:
-                    outputs.append(self.analyst.answer(user_query))
+        for intent in intents:
 
-            elif agent == "extraction_agent":
-                if "json" in user_query.lower():
-                    outputs.append(self.extractor.extract_json())
-                else:
-                    outputs.append(self.extractor.extract_entities(user_query))
+            if intent == "summary":
+                outputs.append(self.analyst.summarize(user_query))
+
+            elif intent == "qa":
+                outputs.append(self.analyst.answer(user_query))
+
+            elif intent == "entities":
+                outputs.append(self.extractor.extract_entities(user_query))
+
+            elif intent == "json":
+                outputs.append(self.extractor.extract_json())
 
         return self.composer.compose(outputs)
