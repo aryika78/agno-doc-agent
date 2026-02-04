@@ -10,4 +10,7 @@ client = AzureOpenAI(
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
 )
 
-DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+# Model deployments
+DEPLOYMENT_CLASSIFIER = os.getenv("DEPLOYMENT_CLASSIFIER")      # 4.1-nano
+DEPLOYMENT_SUMMARY = os.getenv("DEPLOYMENT_SUMMARY")            # 4.1-nano
+DEPLOYMENT_REASONING = os.getenv("DEPLOYMENT_REASONING")        # 5-nanofrom

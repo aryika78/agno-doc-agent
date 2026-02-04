@@ -1,15 +1,14 @@
-from openai import AzureOpenAI
 from prompts.qa_prompt import QA_PROMPT
-from azure_client import client, DEPLOYMENT_NAME
+from azure_client import client, DEPLOYMENT_REASONING
 
 def qa_from_doc_tool(document_text: str, user_query: str) -> str:
     prompt = QA_PROMPT.format(
-        document_text=document_text,
-        user_query=user_query
-    )
+    document_text=document_text.strip(),
+    user_query=user_query.strip())
+
 
     response = client.chat.completions.create(
-        model=DEPLOYMENT_NAME,
+        model=DEPLOYMENT_REASONING,
         messages=[{"role": "user", "content": prompt}],
         temperature=0
     )

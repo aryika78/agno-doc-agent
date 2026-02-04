@@ -16,7 +16,9 @@ Classify the document into one of the following:
 - Other
 
 DOCUMENT:
+DOCUMENT START
 {document_text}
+DOCUMENT END
 
 OUTPUT FORMAT:
 Document Type: <type>

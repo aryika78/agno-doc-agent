@@ -8,20 +8,26 @@ from tools.classifier_tool import doc_classifier_tool
 def route_query(user_query: str, document_text: str) -> str:
     q = user_query.lower()
 
+    # 1️⃣ Summary
     if any(word in q for word in ["summary", "summarize", "about", "overview"]):
         return smart_summary_tool(document_text)
 
-    elif "json" in q or "extract" in q:
-        return json_extractor_tool(document_text)
-
+    # 2️⃣ Entity extraction FIRST
     elif any(word in q for word in [
-    "date", "people", "person", "money", "amount",
-    "deadline", "organization", "organizations",
-    "location", "locations"]):
+        "date", "people", "person", "money", "amount",
+        "deadline", "organization", "organizations",
+        "location", "locations"
+    ]):
         return entity_finder_tool(document_text, user_query)
 
+    # 3️⃣ JSON extraction
+    elif "json" in q:
+        return json_extractor_tool(document_text)
+
+    # 4️⃣ Classifier
     elif "classify" in q or "type" in q:
         return doc_classifier_tool(document_text)
 
+    # 5️⃣ QA fallback
     else:
         return qa_from_doc_tool(document_text, user_query)

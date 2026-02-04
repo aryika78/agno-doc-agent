@@ -11,7 +11,9 @@ TASK:
 Create a concise bullet-point summary of the key points from the document.
 
 DOCUMENT:
+DOCUMENT START
 {document_text}
+DOCUMENT END
 
 OUTPUT FORMAT:
 - Point 1
