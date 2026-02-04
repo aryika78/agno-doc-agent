@@ -5,13 +5,15 @@ STRICT RULES:
 1. Use ONLY the provided document text.
 2. Do not use outside knowledge.
 3. Prefer exact text evidence from the document.
-4. You MAY identify the requested entity even if it appears across multiple lines.
-5. Do not invent or assume anything not supported by the document.
-6. Follow the output format EXACTLY.
+4. Do not invent or assume anything not supported by the document.
+5. Follow the output format EXACTLY.
 
 TASK:
-Based on the USER QUERY, extract ONLY the requested entity type.
-You may combine clues from different parts of the document if needed.
+The USER QUERY specifies what needs to be extracted.
+
+Determine the entity type from the USER QUERY and extract ONLY that from the document.
+
+If the requested entity is not present, return an empty list.
 
 DOCUMENT:
 DOCUMENT START
@@ -22,37 +24,14 @@ USER QUERY:
 {user_query}
 
 OUTPUT FORMAT:
-Return ONLY ONE line for the requested entity type.
-
-Supported entity types and exact formats:
-
-Dates: []
-People: []
-Money: []
-Deadlines: []
-Organizations: []
-Locations: []
+<EntityType>: [values]
 
 Examples:
+People: [Rahul Mehta]
+Books: [Clean Code, Atomic Habits]
+Emails: [abc@email.com]
+Dates: [12 January 2024]
 
-If USER QUERY asks for dates:
-Dates: []
-
-If USER QUERY asks for people:
-People: []
-
-If USER QUERY asks for money:
-Money: []
-
-If USER QUERY asks for deadlines:
-Deadlines: []
-
-If USER QUERY asks for organizations:
-Organizations: []
-
-If USER QUERY asks for locations:
-Locations: []
-
-Do not return any other lines.
+Return ONLY ONE line.
 Preserve capitalization exactly.
 """
