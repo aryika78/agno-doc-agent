@@ -1,0 +1,2 @@
+class ResponseComposerAgent:
+    pass
