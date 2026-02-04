@@ -3,31 +3,23 @@ from tools.json_tool import json_extractor_tool
 from tools.entity_tool import entity_finder_tool
 from tools.qa_tool import qa_from_doc_tool
 from tools.classifier_tool import doc_classifier_tool
-
+from router_llm import llm_router
 
 def route_query(user_query: str, document_text: str) -> str:
-    q = user_query.lower()
+    tool = llm_router(user_query)
+    print(f"\n[ROUTER CHOSE]: {tool}\n")   # 👈 ADD THIS LINE
 
-    # 1️⃣ Summary
-    if any(word in q for word in ["summary", "summarize", "about", "overview"]):
+    if tool == "summary_tool":
         return smart_summary_tool(document_text)
 
-    # 2️⃣ Entity extraction FIRST
-    elif any(word in q for word in [
-        "date", "people", "person", "money", "amount",
-        "deadline", "organization", "organizations",
-        "location", "locations"
-    ]):
-        return entity_finder_tool(document_text, user_query)
-
-    # 3️⃣ JSON extraction
-    elif "json" in q:
+    elif tool == "json_tool":
         return json_extractor_tool(document_text)
 
-    # 4️⃣ Classifier
-    elif "classify" in q or "type" in q:
+    elif tool == "entity_tool":
+        return entity_finder_tool(document_text, user_query)
+
+    elif tool == "classifier_tool":
         return doc_classifier_tool(document_text)
 
-    # 5️⃣ QA fallback
     else:
         return qa_from_doc_tool(document_text, user_query)
