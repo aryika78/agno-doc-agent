@@ -13,6 +13,19 @@ class OrchestratorAgent:
         self.composer = ResponseComposerAgent()
 
     def classify_intent(self, user_query: str) -> list[str]:
+        q = user_query.lower()
+
+        # 🔒 Rule: list-style questions are entities, not QA
+        list_patterns = [
+            "who are", "what are", "names of", "list of",
+            "people mentioned", "locations mentioned",
+            "books mentioned", "dates mentioned"
+        ]
+
+        if any(p in q for p in list_patterns):
+            return ["entities"]
+
+        # Otherwise let LLM classify intent
         prompt = ORCHESTRATOR_PROMPT.format(user_query=user_query)
 
         response = client.chat.completions.create(
@@ -23,6 +36,7 @@ class OrchestratorAgent:
 
         intents = response.choices[0].message.content.strip().lower()
         return [i.strip() for i in intents.split(",")]
+
 
     def handle(self, user_query: str) -> str:
         outputs = []
