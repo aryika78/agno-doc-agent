@@ -10,7 +10,7 @@ def route_query(user_query: str, document_text: str) -> str:
     print(f"\n[ROUTER CHOSE]: {tool}\n")   # 👈 ADD THIS LINE
 
     if tool == "summary_tool":
-        return smart_summary_tool(document_text)
+        return smart_summary_tool(document_text, user_query)
 
     elif tool == "json_tool":
         return json_extractor_tool(document_text)

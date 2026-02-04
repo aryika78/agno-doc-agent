@@ -11,9 +11,11 @@ STRICT RULES:
 7. Follow the output format EXACTLY.
 
 TASK:
-Search the document for information relevant to the USER QUERY.
-You may gather supporting details from different lines or sections if required.
-Extract the final answer based only on document evidence.
+Create a concise bullet-point summary of the key points from the document.
+
+If the USER QUERY specifies a length (like "2 lines", "short", "brief"),
+respect that instruction.
+
 
 If no relevant information is present, say:
 "Answer not found in document."
@@ -22,7 +24,6 @@ DOCUMENT:
 DOCUMENT START
 {document_text}
 DOCUMENT END
-
 
 USER QUERY:
 {user_query}

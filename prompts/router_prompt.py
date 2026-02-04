@@ -5,16 +5,19 @@ Your job is to decide which tool should handle the USER QUERY.
 
 Available tools:
 
-1. summary_tool → For summaries or overviews.
-2. json_tool → For extracting structured JSON information.
-3. entity_tool → For extracting specific entities like people, dates, money, locations, organizations, deadlines.
-4. classifier_tool → For classifying document type.
-5. qa_tool → For general questions about the document.
+1. summary_tool → For summaries, overviews, or key insights.
+2. json_tool → For extracting full structured JSON information from the document.
+3. entity_tool → ONLY when the user explicitly asks to extract entities like:
+   people, dates, money, amounts, locations, organizations, deadlines.
+4. classifier_tool → When the user asks for document type or classification.
+5. qa_tool → For any other question about the document.
 
-Rules:
-- Choose ONLY ONE tool.
-- Return ONLY the tool name.
-- Do not explain.
+CRITICAL RULE:
+If the query is asking something ABOUT a person, date, money, etc. (like email, role, reason, description),
+use qa_tool, NOT entity_tool.
+
+Choose ONLY ONE tool name.
+Return ONLY the tool name. No explanation.
 
 USER QUERY:
 {user_query}

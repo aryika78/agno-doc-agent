@@ -2,8 +2,11 @@ from openai import AzureOpenAI
 from prompts.summary_prompt import SUMMARY_PROMPT
 from azure_client import client, DEPLOYMENT_SUMMARY
 
-def smart_summary_tool(document_text: str) -> str:
-    prompt = SUMMARY_PROMPT.format(document_text=document_text.strip())
+def smart_summary_tool(document_text: str, user_query: str) -> str:
+    prompt = SUMMARY_PROMPT.format(
+    document_text=document_text.strip(),
+    user_query=user_query.strip())
+
 
     response = client.chat.completions.create(
         model=DEPLOYMENT_SUMMARY,
