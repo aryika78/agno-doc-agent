@@ -1,17 +1,17 @@
-# 📘 Prompt-Orchestrated Document Processing Agent (Agno + gpt-4.1-nano)
+# 📘 Prompt-Orchestrated Document Processing Agent (Agno + Multi‑Model Nano)
 
-A tool-driven document analysis agent built with **Agno** and **gpt-4.1-nano** that performs reliable, format-controlled processing of **PDF / DOCX / TXT** files using carefully engineered prompts.
-
+A tool-driven document analysis agent built with **Agno**, **gpt-4.1-nano**, and **gpt-5-nano** that performs reliable, format-controlled processing of **PDF / DOCX / TXT** files using carefully engineered prompts and an LLM‑based router.
 
 ---
 
 ## ✨ Features
 
-* Bullet summary of any document
+* Bullet summary of any document (length-aware)
 * Structured JSON extraction from unstructured text
-* Entity finder (dates, people, money, deadlines, organizations, locations)
-* Question answering strictly from document content
+* **Dynamic entity finder** (works for people, dates, money, locations, books, emails, animals, etc.)
+* Question answering grounded strictly in document content with cross‑line reasoning
 * Document type classification
+* **LLM-based intelligent routing** instead of keyword rules
 * Session mode: switch documents without restarting
 
 ---
@@ -20,10 +20,11 @@ A tool-driven document analysis agent built with **Agno** and **gpt-4.1-nano** t
 
 > **The prompt does the thinking. The model follows instructions.**
 
-* Deterministic router (no LLM for routing)
+* LLM router decides the correct tool
 * Each tool wraps a strict prompt template
 * Temperature = 0 for predictable outputs
-* Works reliably with `gpt-4.1-nano`
+* Uses **gpt-4.1-nano** for structuring tasks
+* Uses **gpt-5-nano** for reasoning tasks
 
 ---
 
@@ -33,6 +34,7 @@ A tool-driven document analysis agent built with **Agno** and **gpt-4.1-nano** t
 agno_doc_agent/
 ├── README.md
 ├── agent.py
+├── router_llm.py
 ├── main.py
 ├── document_loader.py
 ├── azure_client.py
@@ -44,7 +46,8 @@ agno_doc_agent/
 │   ├── json_prompt.py
 │   ├── entity_prompt.py
 │   ├── qa_prompt.py
-│   └── classifier_prompt.py
+│   ├── classifier_prompt.py
+│   └── router_prompt.py
 │
 └── tools/
     ├── summary_tool.py
@@ -52,7 +55,6 @@ agno_doc_agent/
     ├── entity_tool.py
     ├── qa_tool.py
     └── classifier_tool.py
-
 ```
 
 ---
@@ -86,7 +88,9 @@ Create a file named `.env` in the project root:
 ```
 AZURE_OPENAI_API_KEY=your_key_here
 AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT=your_deployment_name_here
+DEPLOYMENT_CLASSIFIER=your_4_1_nano_deployment
+DEPLOYMENT_SUMMARY=your_4_1_nano_deployment
+DEPLOYMENT_REASONING=your_5_nano_deployment
 ```
 
 ---
@@ -101,11 +105,11 @@ You will be prompted to enter a document path.
 
 ### Example queries
 
-* summarize this document
+* summarize this document in 2 lines
 * extract json
-* find dates
-* find people
-* find organizations
+* extract people
+* extract books
+* extract emails
 * what is the payment amount
 * classify this document
 
@@ -126,13 +130,13 @@ Type `new` to load another document, or `exit` to quit.
 ```
 User Query
    ↓
-Deterministic Router
+LLM Router (gpt‑5‑nano)
    ↓
-Tool
+Selected Tool
    ↓
 Prompt Template + Document
    ↓
-gpt-4.1-nano
+Correct Model (4.1‑nano or 5‑nano)
    ↓
 Structured Output
 ```
@@ -143,7 +147,7 @@ Structured Output
 
 * Python
 * Agno
-* Azure OpenAI (`gpt-4.1-nano`)
+* Azure OpenAI (`gpt-4.1-nano`, `gpt-5-nano`)
 * PyPDF2, python-docx
 
 ---
@@ -151,7 +155,8 @@ Structured Output
 ## 📌 Notes
 
 * No document data is stored; everything runs in memory per session
-* Prompts are model-agnostic; switching models requires only a `.env` change
+* Prompts are model-agnostic; routing and model usage are configuration-based
+* Entity extraction is now dynamic based on user query
 
 ---
 
