@@ -10,10 +10,18 @@ STRICT RULES:
 TASK:
 Create a concise bullet-point summary of the key points from the document.
 
+If the USER QUERY specifies a length (like "2 lines", "short", "brief"),
+respect that instruction.
+
+
 DOCUMENT:
 DOCUMENT START
 {document_text}
 DOCUMENT END
+
+USER QUERY:
+{user_query}
+
 
 OUTPUT FORMAT:
 - Point 1

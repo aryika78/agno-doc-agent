@@ -23,3 +23,4 @@ def route_query(user_query: str, document_text: str) -> str:
 
     else:
         return qa_from_doc_tool(document_text, user_query)
+
