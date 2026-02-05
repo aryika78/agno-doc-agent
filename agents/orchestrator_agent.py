@@ -11,19 +11,48 @@ class OrchestratorAgent:
         self.analyst = DocumentAnalystAgent(document_text)
         self.extractor = ExtractionAgent(document_text)
         self.composer = ResponseComposerAgent()
+    
+    def normalize_query(self, user_query: str) -> str:
+        q = user_query.lower()
+        replacements = {
+            "extrat": "extract",
+            "exract": "extract",
+            "summarise": "summarize",
+            "locaton": "location",
+            "thsi": "this",
+            "eho": "who",
+            "sighned": "signed",
+            "shoe": "show",
+        }
+        for wrong, correct in replacements.items():
+            q = q.replace(wrong, correct)
+        return q
 
     def classify_intent(self, user_query: str) -> list[str]:
-        q = user_query.lower()
+        # Normalize first (handles typos like exract, extrat, etc.)
+        q = self.normalize_query(user_query).lower()
+
+        # 🔒 Special rule: if user wants entities in JSON → JSON only
+        if "json" in q and ("entities" in q or "extract" in q):
+            return ["json"]
 
         # 🔒 Rule: list-style questions are entities, not QA
         list_patterns = [
             "who are", "what are", "names of", "list of",
             "people mentioned", "locations mentioned",
-            "books mentioned", "dates mentioned"
+            "books mentioned", "dates mentioned",
+            "show all", "provide names", "every date", "all books"
         ]
 
         if any(p in q for p in list_patterns):
             return ["entities"]
+
+        # 🔒 Direct keyword rules (avoid LLM confusion)
+        if "summarize" in q or "summary" in q:
+            return ["summary"]
+
+        if "json" in q:
+            return ["json"]
 
         # Otherwise let LLM classify intent
         prompt = ORCHESTRATOR_PROMPT.format(user_query=user_query)
@@ -36,6 +65,7 @@ class OrchestratorAgent:
 
         intents = response.choices[0].message.content.strip().lower()
         return [i.strip() for i in intents.split(",")]
+
 
 
     def handle(self, user_query: str) -> str:
