@@ -6,6 +6,13 @@ from agents.orchestrator_agent import OrchestratorAgent
 from document_loader import load_document
 import json
 
+def is_json(text: str) -> bool:
+    try:
+        json.loads(text)
+        return True
+    except Exception:
+        return False
+
 def prettify_response(text: str) -> str:
     try:
         data = json.loads(text)
@@ -83,20 +90,20 @@ if st.session_state.document_text:
 
     # 1️⃣ Render full history first
     for idx, (role, msg) in enumerate(st.session_state.chat_history):
+
+        is_pretty = st.session_state.pretty_flags.get(idx, False)
+        display_text = prettify_response(msg) if (role == "assistant" and is_pretty) else msg
+
         with st.chat_message(role):
-            if role == "assistant":
+            st.markdown(display_text)
 
-                if st.button("✨ Prettify Output", key=f"pretty_btn_{idx}"):
-                    st.session_state.pretty_flags[idx] = True
-
-                if st.session_state.pretty_flags.get(idx, False):
-                    st.markdown(prettify_response(msg))
-                else:
-                    st.markdown(msg)
-
-            else:
-                st.markdown(msg)
-
+        # ✅ Button only if JSON AND assistant message
+        if role == "assistant" and is_json(msg):
+            btn_label = "🔙 Show Original" if is_pretty else "✨ Prettify Output"
+            if st.button(btn_label, key=f"pretty_btn_{idx}"):
+                st.session_state.pretty_flags[idx] = not is_pretty
+                st.rerun()
+                
     # 2️⃣ Take input after rendering
     user_query = st.chat_input("Ask something about the document...")
 

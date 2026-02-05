@@ -73,7 +73,7 @@ class OrchestratorAgent:
                 part_tasks.append(("summary", part))
 
             # Entities (ONLY if JSON not requested)
-            if "json" not in part and any(word in part for word in ["extract", "list", "show", "give", "provide", "find"]):
+            if "json" not in part and any(word in part for word in ["extract", "list", "show", "find"]):
                 part_tasks.append(("entities", part))
 
             # Fallback
