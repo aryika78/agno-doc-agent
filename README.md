@@ -1,6 +1,6 @@
-# 📘 Prompt-Orchestrated Document Processing Agent (Agno + Multi‑Model Nano)
+# 📘 Prompt-Orchestrated Multi-Agent Document Processing System (Agno + Multi‑Model Nano)
 
-A tool-driven document analysis agent built with **Agno**, **gpt-4.1-nano**, and **gpt-5-nano** that performs reliable, format-controlled processing of **PDF / DOCX / TXT** files using carefully engineered prompts and an LLM‑based router.
+A tool-driven **multi-agent** document analysis system built with **Agno**, **gpt-4.1-nano**, and **gpt-5-nano** that performs reliable, format-controlled processing of **PDF / DOCX / TXT** files using carefully engineered prompts and deterministic agent orchestration.
 
 ---
 
@@ -8,10 +8,11 @@ A tool-driven document analysis agent built with **Agno**, **gpt-4.1-nano**, and
 
 * Bullet summary of any document (length-aware)
 * Structured JSON extraction from unstructured text
-* **Dynamic entity finder** (works for people, dates, money, locations, books, emails, animals, etc.)
+* **Dynamic entity finder** (people, dates, money, locations, books, emails, animals, etc.)
 * Question answering grounded strictly in document content with cross‑line reasoning
 * Document type classification
-* **LLM-based intelligent routing** instead of keyword rules
+* **Multi‑agent orchestration** instead of a single router
+* Intent logging for explainability
 * Session mode: switch documents without restarting
 
 ---
@@ -20,34 +21,40 @@ A tool-driven document analysis agent built with **Agno**, **gpt-4.1-nano**, and
 
 > **The prompt does the thinking. The model follows instructions.**
 
-* LLM router decides the correct tool
-* Each tool wraps a strict prompt template
+* A central **OrchestratorAgent** decides which agent to call
+* Each agent wraps a strict prompt template
 * Temperature = 0 for predictable outputs
 * Uses **gpt-4.1-nano** for structuring tasks
 * Uses **gpt-5-nano** for reasoning tasks
+* Deterministic intent rules reduce LLM misrouting
 
 ---
 
-## 🏗️ Project Structure
+## 🏗️ Updated Project Structure
 
 ```
 agno_doc_agent/
-├── README.md
-├── agent.py
-├── router_llm.py
 ├── main.py
 ├── document_loader.py
 ├── azure_client.py
 ├── requirements.txt
 ├── .gitignore
+├── README.md
+│
+├── agents/
+│   ├── document_analyst_agent.py
+│   ├── extraction_agent.py
+│   ├── orchestrator_agent.py
+│   └── response_composer_agent.py
 │
 ├── prompts/
 │   ├── summary_prompt.py
+│   ├── router_prompt.py
 │   ├── json_prompt.py
 │   ├── entity_prompt.py
 │   ├── qa_prompt.py
 │   ├── classifier_prompt.py
-│   └── router_prompt.py
+│   └── orchestrator_prompt.py
 │
 └── tools/
     ├── summary_tool.py
@@ -95,7 +102,7 @@ DEPLOYMENT_REASONING=your_5_nano_deployment
 
 ---
 
-## ▶️ Running the Agent
+## ▶️ Running the System
 
 ```bash
 python main.py
@@ -103,42 +110,34 @@ python main.py
 
 You will be prompted to enter a document path.
 
-### Example queries
-
-* summarize this document in 2 lines
-* extract json
-* extract people
-* extract books
-* extract emails
-* what is the payment amount
-* classify this document
-
 Type `new` to load another document, or `exit` to quit.
 
 ---
 
-## 🧪 Supported File Types
+## 🧪 Example Queries
 
-* `.txt`
-* `.docx`
-* `.pdf`
+* summarize this document in 2 lines
+* what is the project deadline
+* extract books
+* extract animals then summarize briefly
+* explain this document and give json
+* who are the people mentioned
+* list all dates
 
 ---
 
-## 🔍 How It Works
+## 🔍 How It Works (New Flow)
 
 ```
 User Query
    ↓
-LLM Router (gpt‑5‑nano)
+OrchestratorAgent
    ↓
-Selected Tool
+Intent Classification (rule-based + prompt help)
    ↓
-Prompt Template + Document
+Relevant Agents Called in Sequence
    ↓
-Correct Model (4.1‑nano or 5‑nano)
-   ↓
-Structured Output
+ResponseComposerAgent merges outputs
 ```
 
 ---
@@ -147,16 +146,16 @@ Structured Output
 
 * Python
 * Agno
-* Azure OpenAI (`gpt-4.1-nano`, `gpt-5-nano`)
+* Azure OpenAI (gpt-4.1-nano, gpt-5-nano)
 * PyPDF2, python-docx
 
 ---
 
-## 📌 Notes
+## 📌 Important Notes
 
 * No document data is stored; everything runs in memory per session
-* Prompts are model-agnostic; routing and model usage are configuration-based
-* Entity extraction is now dynamic based on user query
+* Prompts are model-agnostic; model usage is configuration-based
+* System prints **[Intent]** and **[Agents]** for explainability
 
 ---
 
