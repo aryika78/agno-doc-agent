@@ -9,5 +9,5 @@ class ExtractionAgent:
     def extract_entities(self, user_query: str):
         return entity_finder_tool(self.document_text, user_query)
 
-    def extract_json(self):
-        return json_extractor_tool(self.document_text)
+    def extract_json(self, user_query: str):
+        return json_extractor_tool(self.document_text, user_query)

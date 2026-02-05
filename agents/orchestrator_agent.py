@@ -1,6 +1,7 @@
 from agents.document_analyst_agent import DocumentAnalystAgent
 from agents.extraction_agent import ExtractionAgent
 from agents.response_composer_agent import ResponseComposerAgent
+import re
 
 
 class OrchestratorAgent:
@@ -24,14 +25,32 @@ class OrchestratorAgent:
             q = q.replace(wrong, correct)
         return q
 
-    def classify_intent(self, user_query: str) -> list[tuple[str, str]]:
-        """Returns list of (intent, relevant_query_part) tuples"""
-        q = self.normalize_query(user_query).lower()
+    # ✅ Split only on real task separators
+    def split_into_intent_chunks(self, query: str) -> list[str]:
+        pattern = r"\b(then|also|next)\b"
+        chunks = re.split(pattern, query)
 
-        # 🔥 Split on BOTH "then" and "and"
-        parts = []
-        for chunk in q.split("then"):
-            parts.extend([p.strip() for p in chunk.split("and")])
+        clean_chunks = []
+        buffer = ""
+
+        for part in chunks:
+            part = part.strip()
+            if part in ["then", "also", "next"]:
+                if buffer:
+                    clean_chunks.append(buffer.strip())
+                buffer = ""
+            else:
+                buffer += " " + part
+
+        if buffer.strip():
+            clean_chunks.append(buffer.strip())
+
+        return clean_chunks
+
+    # ✅ TRUE multi-intent detection
+    def classify_intent(self, user_query: str) -> list[tuple[str, str]]:
+        q = self.normalize_query(user_query)
+        parts = self.split_into_intent_chunks(q)
 
         tasks = []
 
@@ -39,24 +58,29 @@ class OrchestratorAgent:
             if not part:
                 continue
 
-            # ✅ JSON first
+            part_tasks = []
+
+            # JSON
             if "json" in part:
-                tasks.append(("json", part))
+                part_tasks.append(("json", part))
 
-            # ✅ If it's a question, treat as QA
-            elif part.strip().startswith(("what", "who", "where", "when", "why", "how")):
-                tasks.append(("qa", part))
+            # QA (question words anywhere)
+            if any(word in part for word in ["what", "who", "where", "when", "why", "how"]):
+                part_tasks.append(("qa", part))
 
-            # ✅ Summary
-            elif any(word in part for word in ["summarize", "summary", "key insight", "key idea"]):
-                tasks.append(("summary", part))
+            # Summary
+            if any(word in part for word in ["summarize", "summary", "key insight", "key idea"]):
+                part_tasks.append(("summary", part))
 
-            # ✅ Entities last
-            elif any(word in part for word in ["extract", "list", "show", "give", "provide"]):
-                tasks.append(("entities", part))
+            # Entities (ONLY if JSON not requested)
+            if "json" not in part and any(word in part for word in ["extract", "list", "show", "give", "provide", "find"]):
+                part_tasks.append(("entities", part))
 
-        if not tasks:
-            tasks = [("qa", user_query)]
+            # Fallback
+            if not part_tasks:
+                part_tasks.append(("qa", part))
+
+            tasks.extend(part_tasks)
 
         return tasks
 
@@ -64,20 +88,26 @@ class OrchestratorAgent:
         outputs = []
         tasks = self.classify_intent(user_query)
 
-        # 🔹 LOGGING
-        intents_log = " → ".join([intent for intent, _ in tasks])
-        agents_log = []
-        for intent, _ in tasks:
-            if intent in ["qa", "summary"]:
-                agents_log.append("DocumentAnalyst")
-            elif intent in ["entities", "json"]:
-                agents_log.append("ExtractionAgent")
+        print(f"\n[Intent Flow]: {' → '.join([i for i, _ in tasks])}")
 
-        print(f"\n[Intent]: {intents_log}")
-        print(f"[Agents]: {' → '.join(agents_log)}")
-
-        # 🔹 EXECUTION
         for intent, query_part in tasks:
+
+            # 🔴 Priority control
+            intents_in_same_part = [i for i, p in tasks if p == query_part]
+
+            # If JSON exists for this part → run ONLY json
+            if "json" in intents_in_same_part and intent != "json":
+                continue
+
+            # If Summary exists → skip QA
+            if "summary" in intents_in_same_part and intent == "qa":
+                continue
+
+            # If QA exists → skip Entities
+            if "qa" in intents_in_same_part and intent == "entities":
+                continue
+
+            # 🔹 Execute
             if intent == "qa":
                 outputs.append(self.analyst.answer(query_part))
             elif intent == "summary":
@@ -85,6 +115,7 @@ class OrchestratorAgent:
             elif intent == "entities":
                 outputs.append(self.extractor.extract_entities(query_part))
             elif intent == "json":
-                outputs.append(self.extractor.extract_json())
+                outputs.append(self.extractor.extract_json(query_part))
 
         return self.composer.compose(outputs)
+
