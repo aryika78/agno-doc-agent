@@ -26,6 +26,21 @@ BEHAVIOR RULES:
 5. Output format STRICTLY:
    EntityType: [item1, item2]
 
+   Each EntityType must appear on a new line.
+
+   Each item must be a clean, separate value.
+   Do NOT merge multiple values into one string.
+
+   Example:
+   Locations: [Pune, India], [Mumbai, India]  ❌
+   Locations: [Pune, India, Mumbai, India]    ❌
+   Locations: [Pune, India], [Mumbai, India]  ❌
+
+   Correct:
+   Locations: [Pune, India], [Mumbai, India]
+   → meaning two separate list items inside the same list.
+
+
 6. Do NOT include explanations.
 7. Do NOT hallucinate entities not present in the document.
 

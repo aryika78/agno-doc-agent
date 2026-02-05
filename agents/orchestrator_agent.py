@@ -87,10 +87,10 @@ class OrchestratorAgent:
     def handle(self, user_query: str) -> str:
         outputs = []
         tasks = self.classify_intent(user_query)
-
+        tasks.sort(key=lambda x: 0 if x[0] == "summary" else 1)
         print(f"\n[Intent Flow]: {' → '.join([i for i, _ in tasks])}")
-
         for intent, query_part in tasks:
+            
 
             # 🔴 Priority control
             intents_in_same_part = [i for i, p in tasks if p == query_part]

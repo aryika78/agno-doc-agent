@@ -24,9 +24,10 @@ class ResponseComposerAgent:
                 except Exception:
                     text_blocks.append(part)
 
-            # ✅ Detect list style outputs like: Books: [...], Animals: [...]
             elif re.search(r"\w+:\s*\[.*\]", part):
-                list_blocks.append(part)
+                # Force split between entity groups even if model returned one line
+                forced_lines = re.findall(r"\w+:\s*\[[^\]]*\]", part)
+                list_blocks.extend(forced_lines)
 
             # ✅ Normal sentences (QA / Summary)
             else:
@@ -45,9 +46,23 @@ class ResponseComposerAgent:
                     seen.add(t)
             final_response.append("\n".join(clean_text))
 
-        # 2️⃣ Lists (entities)
+        # 2️⃣ Lists (entities) — group by label and add spacing
         if list_blocks and not json_blocks:
-            final_response.append("\n".join(list_blocks))
+            grouped = {}
+
+            for line in list_blocks:
+                label, values = line.split(":", 1)
+                label = label.strip()
+                values = values.strip()
+
+                grouped.setdefault(label, []).append(values)
+
+            formatted_lists = []
+            for label, vals in grouped.items():
+                joined_vals = ", ".join(vals)
+                formatted_lists.append(f"{label}: {joined_vals}")
+
+            final_response.append("\n\n".join(formatted_lists))
 
         # 3️⃣ JSON at the end
         if json_blocks:
