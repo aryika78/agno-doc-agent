@@ -1,4 +1,3 @@
-from agent import route_query
 from document_loader import load_document
 from agents.orchestrator_agent import OrchestratorAgent
 
@@ -8,7 +7,7 @@ def load_new_document():
     return load_document(path)
 
 
-print("=== Prompt-Orchestrated Document Agent ===")
+print("=== Prompt-Orchestrated Multi-Agent Document System ===")
 
 document_text = load_new_document()
 
@@ -22,19 +21,8 @@ while True:
         document_text = load_new_document()
         continue
 
-    # ✅ New multi-agent flow
     orch = OrchestratorAgent(document_text)
-
-    try:
-        response = orch.handle(user_query)
-
-        # Fallback if orchestrator gives nothing
-        if not response.strip():
-            raise ValueError("Empty orchestrator response")
-
-    except Exception:
-        # Old router fallback
-        response = route_query(user_query, document_text)
+    response = orch.handle(user_query)
 
     print("\n=== RESPONSE ===\n")
     print(response)
