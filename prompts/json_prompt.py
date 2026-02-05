@@ -1,31 +1,46 @@
 JSON_PROMPT = """
-You are a document analysis engine.
+Extract ALL entities from the document in JSON format.
 
-STRICT RULES:
-1. Use ONLY the provided document text.
-2. Do not use outside knowledge.
-3. Prefer exact text evidence from the document.
-4. You MAY gather information from multiple parts of the document.
-5. Do not invent or assume anything not supported by the document.
-6. If information is not present, return empty lists.
-7. Follow the output format EXACTLY.
-
-TASK:
-Extract structured information from the document.
-You may combine clues from different sections if required.
+CRITICAL RULES:
+1. Scan the ENTIRE document for ALL entity types
+2. Include standard entities AND any unique ones you find
+3. If a category has no values, use empty array []
+4. Add new categories for any additional entity types found (skills, products, projects, etc.)
 
 DOCUMENT:
-DOCUMENT START
 {document_text}
-DOCUMENT END
 
-OUTPUT FORMAT:
+Output valid JSON including ALL entity types found in the document.
+
+Standard categories (always include):
+- people
+- organizations  
+- dates
+- amounts
+- locations
+- deadlines
+
+Additional categories (include if found):
+- books
+- animals
+- emails
+- phone_numbers
+- skills
+- projects
+- products
+- Any other relevant entity type
+
+Example output format:
 {{
-  "people": [],
-  "dates": [],
-  "amounts": [],
-  "locations": [],
-  "organizations": [],
-  "deadlines": []
+  "people": ["Mr. Rahul Mehta"],
+  "organizations": ["Orion Technologies"],
+  "dates": ["12 January 2024", "30 March 2024"],
+  "amounts": ["5,00,000 INR"],
+  "locations": ["Ahmedabad, India"],
+  "deadlines": ["end of Q1 2024"],
+  "books": ["Clean Code", "Atomic Habits"],
+  "animals": ["Rex (German Shepherd)", "Bruno (Labrador)"]
 }}
+
+Output complete JSON:
 """

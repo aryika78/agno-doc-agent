@@ -1,40 +1,23 @@
 ENTITY_PROMPT = """
-You are an entity extraction engine.
+Extract ONLY the entities specifically requested.
 
-STRICT RULES:
-1. Use ONLY the provided document text.
-2. Do NOT use outside knowledge.
-3. Do NOT guess entity types.
-4. Extract ONLY the exact entity types explicitly mentioned in USER QUERY.
-5. If multiple types are mentioned, extract only those.
-6. If a type is not mentioned in USER QUERY, do NOT include it.
+RULES:
+1. Look at the USER REQUEST below
+2. Find which entity types are mentioned (e.g., "animals", "books", "dates", "people")
+3. Extract ONLY those types - NOTHING ELSE
+4. Output format: EntityType: [item1, item2]
+5. Do NOT extract types that weren't requested
 
 DOCUMENT:
-DOCUMENT START
 {document_text}
-DOCUMENT END
 
-USER QUERY:
+USER REQUEST:
 {user_query}
 
-TASK:
-Identify the entity types directly named in USER QUERY
-(e.g., people, books, animals, dates, emails, locations, organizations)
-and extract ONLY those from the document.
-
-OUTPUT FORMAT (strict):
-
-For each requested type, return EXACTLY:
-
-<EntityType>: [comma-separated values]
-
 Examples:
-Dates: [12 January 2024, 30 March 2024]
-Books: [Clean Code, Atomic Habits]
+- Request: "list animals" → Output: Animals: [Rex, Bruno]
+- Request: "extract books and dates" → Output: Books: [...], Dates: [...]
+- Request: "show people" → Output: People: [...]
 
-- Capitalize the entity type.
-- Always use square brackets.
-- Do NOT write sentences.
-- Do NOT omit brackets.
-
+NOW extract ONLY what was requested in USER REQUEST above:
 """
