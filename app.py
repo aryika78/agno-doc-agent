@@ -4,6 +4,15 @@ import os
 
 from agents.orchestrator_agent import OrchestratorAgent
 from document_loader import load_document
+import json
+
+def prettify_response(text: str) -> str:
+    try:
+        data = json.loads(text)
+        return "### ✅ Structured Output\n\n```json\n" + json.dumps(data, indent=2) + "\n```"
+    except Exception:
+        return text
+
 
 
 st.set_page_config(page_title="📄 Document AI Assistant", layout="wide")
@@ -28,6 +37,7 @@ def cached_load_document(file_bytes: bytes, suffix: str):
 
 
 # ---------------- SESSION STATE ----------------
+# ---------------- SESSION STATE ----------------
 if "document_text" not in st.session_state:
     st.session_state.document_text = None
 
@@ -36,6 +46,10 @@ if "chat_history" not in st.session_state:
 
 if "current_file" not in st.session_state:
     st.session_state.current_file = None
+
+if "pretty_flags" not in st.session_state:
+    st.session_state.pretty_flags = {}
+
 
 
 # ---------------- FILE UPLOAD ----------------
@@ -68,9 +82,20 @@ st.subheader("💬 Chat with your document")
 if st.session_state.document_text:
 
     # 1️⃣ Render full history first
-    for role, msg in st.session_state.chat_history:
+    for idx, (role, msg) in enumerate(st.session_state.chat_history):
         with st.chat_message(role):
-            st.markdown(msg)
+            if role == "assistant":
+
+                if st.button("✨ Prettify Output", key=f"pretty_btn_{idx}"):
+                    st.session_state.pretty_flags[idx] = True
+
+                if st.session_state.pretty_flags.get(idx, False):
+                    st.markdown(prettify_response(msg))
+                else:
+                    st.markdown(msg)
+
+            else:
+                st.markdown(msg)
 
     # 2️⃣ Take input after rendering
     user_query = st.chat_input("Ask something about the document...")
