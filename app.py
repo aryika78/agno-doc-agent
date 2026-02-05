@@ -40,6 +40,9 @@ if uploaded_file:
     st.session_state.document_text = load_document(temp_path)
     st.session_state.chat_history = []
     st.success("✅ Document loaded successfully!")
+    
+st.divider()
+st.subheader("💬 Chat with your document")
 
 # Chat UI
 if st.session_state.document_text:
