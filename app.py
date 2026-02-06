@@ -50,14 +50,15 @@ def cached_load_document(file_bytes: bytes, suffix: str):
 
 
 # ---------------- SESSION STATE ----------------
-if "doc_id" not in st.session_state:
-    st.session_state.doc_id = None
+if "documents" not in st.session_state:
+    # filename -> doc_id
+    st.session_state.documents = {}
+
+if "active_doc" not in st.session_state:
+    st.session_state.active_doc = None
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-
-if "current_file" not in st.session_state:
-    st.session_state.current_file = None
 
 if "pretty_flags" not in st.session_state:
     st.session_state.pretty_flags = {}
@@ -70,7 +71,7 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
-    if st.session_state.current_file != uploaded_file.name:
+    if uploaded_file.name not in st.session_state.documents:
         suffix = "." + uploaded_file.name.split(".")[-1]
 
         document_text = cached_load_document(
@@ -84,11 +85,35 @@ if uploaded_file:
             metadata={"filename": uploaded_file.name}
         )
 
-        st.session_state.doc_id = doc_id
+        st.session_state.documents[uploaded_file.name] = doc_id
+        st.session_state.active_doc = doc_id
         st.session_state.chat_history = []
-        st.session_state.current_file = uploaded_file.name
 
-        st.success("✅ Document indexed and ready!")
+        st.success(f"✅ '{uploaded_file.name}' indexed and ready!")
+
+    else:
+        st.info("📄 Document already indexed.")
+
+
+# ---------------- DOCUMENT SELECTOR ----------------
+if st.session_state.documents:
+    st.divider()
+    st.subheader("📂 Select Active Document")
+
+    filenames = list(st.session_state.documents.keys())
+
+    selected_file = st.selectbox(
+        "Active document",
+        filenames,
+        index=filenames.index(
+            next(
+                name for name, did in st.session_state.documents.items()
+                if did == st.session_state.active_doc
+            )
+        )
+    )
+
+    st.session_state.active_doc = st.session_state.documents[selected_file]
 
 
 st.divider()
@@ -96,7 +121,7 @@ st.subheader("💬 Chat with your document")
 
 
 # ---------------- CHAT UI ----------------
-if st.session_state.doc_id:
+if st.session_state.active_doc:
 
     # 1️⃣ Render history
     for idx, (role, msg) in enumerate(st.session_state.chat_history):
@@ -119,11 +144,11 @@ if st.session_state.doc_id:
     if user_query:
         st.session_state.chat_history.append(("user", user_query))
 
-        # 🔹 RETRIEVE CONTEXT FROM QDRANT
+        # 🔹 RETRIEVE CONTEXT FROM SELECTED DOC
         context_text = store.search(
             query=user_query,
             top_k=5,
-            doc_id=st.session_state.doc_id
+            doc_id=st.session_state.active_doc
         )
 
         orch = OrchestratorAgent(context_text)
