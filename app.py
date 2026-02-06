@@ -145,12 +145,16 @@ if st.session_state.active_doc:
         st.session_state.chat_history.append(("user", user_query))
 
         # 🔹 RETRIEVE CONTEXT FROM SELECTED DOC
+        # 🔹 Dynamic top_k: higher recall for list/entity queries
+        list_keywords = ["extract", "list", "show", "find"]
+        top_k = 8 if any(k in user_query.lower() for k in list_keywords) else 5
+
         context_text = store.search(
             query=user_query,
-            top_k=5,
+            top_k=top_k,
             doc_id=st.session_state.active_doc
         )
-
+        
         orch = OrchestratorAgent(context_text)
         response = orch.handle(user_query)
 
