@@ -16,13 +16,25 @@ def is_json(text: str) -> bool:
         return False
 
 
-def prettify_response(text: str) -> str:
-    try:
-        data = json.loads(text)
-        return "### ✅ Structured Output\n\n```json\n" + json.dumps(data, indent=2) + "\n```"
-    except Exception:
-        return text
+def prettify_response(content) -> str:
+    # ✅ If already a dict, prettify directly
+    if isinstance(content, dict):
+        return (
+            "### ✅ Structured Output\n\n```json\n"
+            + json.dumps(content, indent=2)
+            + "\n```"
+        )
 
+    # Fallback: try parsing string JSON (legacy safety)
+    try:
+        data = json.loads(content)
+        return (
+            "### ✅ Structured Output\n\n```json\n"
+            + json.dumps(data, indent=2)
+            + "\n```"
+        )
+    except Exception:
+        return content
 
 st.set_page_config(page_title="📄 Document AI Assistant", layout="wide")
 
@@ -165,7 +177,6 @@ if st.session_state.active_doc:
             if (is_json_block and is_pretty)
             else content
         )
-
         with st.chat_message(role):
             st.markdown(display_text)
 
@@ -195,8 +206,9 @@ if st.session_state.active_doc:
         )
 
         orch = OrchestratorAgent(context_text)
-        response = orch.handle(user_query)
+        response = orch.handle(user_query) or []
 
         for block in response:
             st.session_state.chat_history.append(("assistant", block))
+
         st.rerun()

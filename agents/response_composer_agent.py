@@ -1,32 +1,36 @@
 import json
+
 class ResponseComposerAgent:
-    def compose(self, parts: list[str]) -> list[dict]:
+    def compose(self, parts: list) -> list[dict]:
         blocks = []
-        has_json = False
 
-        # First pass: detect JSON blocks
         for part in parts:
-            part = part.strip()
-            if part.startswith("{") and part.endswith("}"):
-                try:
-                    json.loads(part)
-                    blocks.append({"type": "json", "content": part})
-                    has_json = True
-                    continue
-                except Exception:
-                    pass
 
-            blocks.append({"type": "text", "content": part})
+            # ✅ JSON mode (prettify button works)
+            if isinstance(part, dict):
+                blocks.append({
+                    "type": "json",
+                    "content": part
+                })
 
-        # 🔥 SECOND PASS FIX
-        if has_json:
-            blocks = [
-                b for b in blocks
-                if not (
-                    b["type"] == "text"
-                    and b["content"].strip().startswith("{")
-                    and b["content"].strip().endswith("}")
-                )
-            ]
+            # ✅ Plain grouped entity text (already formatted)
+            elif isinstance(part, str):
+                blocks.append({
+                    "type": "text",
+                    "content": part
+                })
+
+            # ✅ Safety: list → join as plain text
+            elif isinstance(part, list):
+                blocks.append({
+                    "type": "text",
+                    "content": "\n".join(part)
+                })
+
+            else:
+                blocks.append({
+                    "type": "text",
+                    "content": str(part)
+                })
 
         return blocks

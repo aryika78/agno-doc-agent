@@ -25,7 +25,6 @@ class OrchestratorAgent:
             q = q.replace(wrong, correct)
         return q
 
-    # ✅ Split only on real task separators
     def split_into_intent_chunks(self, query: str) -> list[str]:
         pattern = r"\b(then|also|next)\b"
         chunks = re.split(pattern, query)
@@ -47,7 +46,6 @@ class OrchestratorAgent:
 
         return clean_chunks
 
-    # ✅ TRUE multi-intent detection
     def classify_intent(self, user_query: str) -> list[tuple[str, str]]:
         q = self.normalize_query(user_query)
         parts = self.split_into_intent_chunks(q)
@@ -58,64 +56,55 @@ class OrchestratorAgent:
             if not part:
                 continue
 
-            part_tasks = []
+            if any(w in part for w in ["summarize", "summary", "key insight", "key idea"]):
+                tasks.append(("summary", part))
 
-            # JSON
-            if "json" in part:
-                part_tasks.append(("json", part))
+            if any(w in part for w in ["extract", "list", "show", "find"]):
+                tasks.append(("entities", part))
 
-            # QA (question words anywhere)
-            if any(word in part for word in ["what", "who", "where", "when", "why", "how"]):
-                part_tasks.append(("qa", part))
-
-            # Summary
-            if any(word in part for word in ["summarize", "summary", "key insight", "key idea"]):
-                part_tasks.append(("summary", part))
-
-            # Entities (ONLY if JSON not requested)
-            if "json" not in part and any(word in part for word in ["extract", "list", "show", "find"]):
-                part_tasks.append(("entities", part))
-
-            # Fallback
-            if not part_tasks:
-                part_tasks.append(("qa", part))
-
-            tasks.extend(part_tasks)
+            if not tasks:
+                tasks.append(("qa", part))
 
         return tasks
 
     def handle(self, user_query: str) -> list[dict]:
-        outputs = []
+        normalized_query = self.normalize_query(user_query)
+        json_mode = "json" in normalized_query
+
         tasks = self.classify_intent(user_query)
         tasks.sort(key=lambda x: 0 if x[0] == "summary" else 1)
-        print(f"\n[Intent Flow]: {' → '.join([i for i, _ in tasks])}")
+
+        json_output = {}
+        outputs = []
+
         for intent, query_part in tasks:
-            
 
-            # 🔴 Priority control
-            intents_in_same_part = [i for i, p in tasks if p == query_part]
+            if intent == "summary":
+                summary = self.analyst.summarize(query_part)
+                if json_mode:
+                    json_output["summary"] = summary
+                else:
+                    outputs.append(summary)
 
-            # Allow summary + json together
-            if "json" in intents_in_same_part and intent not in ["json", "summary"]:
-                continue
-
-            # If Summary exists → skip QA
-            if "summary" in intents_in_same_part and intent == "qa":
-                continue
-
-            # If QA exists → skip Entities
-            if "qa" in intents_in_same_part and intent == "entities":
-                continue
-
-            # 🔹 Execute
-            if intent == "qa":
-                outputs.append(self.analyst.answer(query_part))
-            elif intent == "summary":
-                outputs.append(self.analyst.summarize(query_part))
             elif intent == "entities":
-                outputs.append(self.extractor.extract_entities(query_part))
-            elif intent == "json":
-                outputs.append(self.extractor.extract_json(query_part))
+                result = self.extractor.extract_entities(query_part)["entities"]
 
-        return self.composer.compose(outputs)
+                if json_mode:
+                    json_output.update(result)
+                else:
+                    lowered = query_part.lower()
+                    lines = []
+                    for k, v in result.items():
+                        if k.lower() in lowered or not any(word in lowered for word in result.keys()):
+                            lines.append(f"{k} = [{', '.join(v)}]")
 
+                    outputs.append("\n\n".join(lines))
+
+            elif intent == "qa" and not json_mode:
+                outputs.append(self.analyst.answer(query_part))
+
+        # 🔒 HARD GUARANTEE: NEVER RETURN None
+        if json_mode:
+            return self.composer.compose([json_output])
+
+        return self.composer.compose(outputs or [])
