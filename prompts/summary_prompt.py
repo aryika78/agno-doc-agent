@@ -11,7 +11,7 @@ RULES:
 3. Do NOT exaggerate or add unstated details.
 4. Do NOT list entities in labeled formats like "Animals: [...]".
 5. Use neutral, factual language suitable for any document type.
-6. If the summary requires more than 3 sentences, present it as bullet points for clarity.
+6. If the summary is longer than 3 sentences, present it strictly as bullet points.
 
 LENGTH REQUIREMENTS (check USER QUERY):
 - If asks for "1 line" or "one line" → 1 concise sentence with the core idea
@@ -20,6 +20,11 @@ LENGTH REQUIREMENTS (check USER QUERY):
 - If asks for "brief" or "short" → 3–4 sentences
 - If asks for "key insight" or "key idea" → 1–2 sentences highlighting the most important points
 - Default (no length specified) → 4–5 sentences
+
+OUTPUT FORMAT:
+- If the summary is longer than 3 sentences, output MUST be bullet points.
+- Each bullet must be a complete sentence.
+- Do not include any paragraph text when using bullets.
 
 DOCUMENT:
 {document_text}
