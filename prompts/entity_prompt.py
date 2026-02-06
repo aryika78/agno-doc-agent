@@ -40,9 +40,13 @@ BEHAVIOR RULES:
    Locations: [Pune, India], [Mumbai, India]
    → meaning two separate list items inside the same list.
 
+6. If an entity fits a more specific category (e.g., People, Animals),
+   DO NOT repeat it under generic labels like Names.
+   Do NOT create generic categories such as Names if a specific category exists.
 
-6. Do NOT include explanations.
-7. Do NOT hallucinate entities not present in the document.
+
+7. Do NOT include explanations.
+8. Do NOT hallucinate entities not present in the document.
 
 DOCUMENT:
 {document_text}
