@@ -11,6 +11,7 @@ RULES:
 3. Do NOT exaggerate or add unstated details.
 4. Do NOT list entities in labeled formats like "Animals: [...]".
 5. Use neutral, factual language suitable for any document type.
+6. If the summary requires more than 3 sentences, present it as bullet points for clarity.
 
 LENGTH REQUIREMENTS (check USER QUERY):
 - If asks for "1 line" or "one line" → 1 concise sentence with the core idea
