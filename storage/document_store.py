@@ -1,15 +1,14 @@
-from qdrant_client.http.models import VectorParams, Distance
+from qdrant_client.http.models import VectorParams, Distance, Filter
 from config.qdrant_client import get_qdrant_client
 from fastembed import TextEmbedding
-import uuid
 from storage.chunking import chunk_text
-from qdrant_client.http.models import Filter
+import uuid
 
 
 class DocumentStore:
     """
     Handles document storage and retrieval using Qdrant.
-    This is NOT an agent. Pure storage service.
+    Pure storage service.
     """
 
     COLLECTION_NAME = "documents"
@@ -21,13 +20,10 @@ class DocumentStore:
         self.embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
     def _ensure_collection(self) -> None:
-        """
-        Create collection if it does not exist.
-        """
         collections = self.client.get_collections().collections
-        collection_names = [c.name for c in collections]
+        names = [c.name for c in collections]
 
-        if self.COLLECTION_NAME not in collection_names:
+        if self.COLLECTION_NAME not in names:
             self.client.create_collection(
                 collection_name=self.COLLECTION_NAME,
                 vectors_config=VectorParams(
@@ -36,14 +32,47 @@ class DocumentStore:
                 )
             )
 
+    # ---------------- NEW ----------------
+    def list_documents(self) -> dict:
+        """
+        Returns { filename: doc_id } for all indexed documents.
+        """
+        docs = {}
+
+        offset = None
+        while True:
+            res = self.client.scroll(
+                collection_name=self.COLLECTION_NAME,
+                with_payload=True,
+                limit=100,
+                offset=offset
+            )
+
+            points, offset = res
+            for p in points:
+                payload = p.payload or {}
+                filename = payload.get("filename")
+                doc_id = payload.get("doc_id")
+
+                if filename and doc_id:
+                    docs[filename] = doc_id
+
+            if offset is None:
+                break
+
+        return docs
+
+    def document_exists(self, filename: str) -> str | None:
+        """
+        Returns doc_id if document already exists, else None.
+        """
+        docs = self.list_documents()
+        return docs.get(filename)
+
+    # ---------------- EXISTING ----------------
     def save_document(self, text: str, metadata: dict | None = None) -> str:
-        """
-        Chunk text, embed chunks, and store them in Qdrant.
-        Returns document ID.
-        """
         doc_id = str(uuid.uuid4())
         chunks = chunk_text(text)
-
         embeddings = list(self.embedder.embed(chunks))
 
         points = []
@@ -59,7 +88,6 @@ class DocumentStore:
                 }
             })
 
-
         self.client.upsert(
             collection_name=self.COLLECTION_NAME,
             points=points
@@ -67,23 +95,13 @@ class DocumentStore:
 
         return doc_id
 
-    def search(
-        self,
-        query: str,
-        top_k: int = 5,
-        doc_id: str | None = None
-    ) -> str:
+    def search(self, query: str, top_k: int = 5, doc_id: str | None = None) -> str:
         query_vector = list(self.embedder.embed([query]))[0]
 
         search_filter = None
         if doc_id:
             search_filter = Filter(
-                must=[
-                    {
-                        "key": "doc_id",
-                        "match": {"value": doc_id}
-                    }
-                ]
+                must=[{"key": "doc_id", "match": {"value": doc_id}}]
             )
 
         response = self.client.query_points(
@@ -94,11 +112,8 @@ class DocumentStore:
             with_payload=True
         )
 
-        # 🔑 THIS IS THE IMPORTANT PART
-        points = response.points
-
         texts = []
-        for p in points:
+        for p in response.points:
             if p.payload and "text" in p.payload:
                 texts.append(p.payload["text"])
 

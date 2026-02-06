@@ -51,11 +51,13 @@ def cached_load_document(file_bytes: bytes, suffix: str):
 
 # ---------------- SESSION STATE ----------------
 if "documents" not in st.session_state:
-    # filename -> doc_id
-    st.session_state.documents = {}
+    # hydrate from Qdrant (source of truth)
+    st.session_state.documents = store.list_documents()
 
 if "active_doc" not in st.session_state:
-    st.session_state.active_doc = None
+    st.session_state.active_doc = (
+        next(iter(st.session_state.documents.values()), None)
+    )
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
@@ -71,15 +73,19 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
-    if uploaded_file.name not in st.session_state.documents:
-        suffix = "." + uploaded_file.name.split(".")[-1]
+    existing_doc_id = store.document_exists(uploaded_file.name)
 
+    if existing_doc_id:
+        st.session_state.documents[uploaded_file.name] = existing_doc_id
+        st.session_state.active_doc = existing_doc_id
+        st.info("📄 Document already indexed. Loaded from storage.")
+    else:
+        suffix = "." + uploaded_file.name.split(".")[-1]
         document_text = cached_load_document(
             uploaded_file.read(),
             suffix
         )
 
-        # 🔹 SAVE DOCUMENT TO QDRANT
         doc_id = store.save_document(
             document_text,
             metadata={"filename": uploaded_file.name}
@@ -91,8 +97,6 @@ if uploaded_file:
 
         st.success(f"✅ '{uploaded_file.name}' indexed and ready!")
 
-    else:
-        st.info("📄 Document already indexed.")
 
 
 # ---------------- DOCUMENT SELECTOR ----------------
@@ -154,7 +158,7 @@ if st.session_state.active_doc:
             top_k=top_k,
             doc_id=st.session_state.active_doc
         )
-        
+
         orch = OrchestratorAgent(context_text)
         response = orch.handle(user_query)
 
