@@ -3,6 +3,7 @@ from config.qdrant_client import get_qdrant_client
 from fastembed import TextEmbedding
 import uuid
 from storage.chunking import chunk_text
+from qdrant_client.http.models import Filter
 
 
 class DocumentStore:
@@ -66,3 +67,39 @@ class DocumentStore:
 
         return doc_id
 
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        doc_id: str | None = None
+    ) -> str:
+        query_vector = list(self.embedder.embed([query]))[0]
+
+        search_filter = None
+        if doc_id:
+            search_filter = Filter(
+                must=[
+                    {
+                        "key": "doc_id",
+                        "match": {"value": doc_id}
+                    }
+                ]
+            )
+
+        response = self.client.query_points(
+            collection_name=self.COLLECTION_NAME,
+            query=query_vector,
+            limit=top_k,
+            query_filter=search_filter,
+            with_payload=True
+        )
+
+        # 🔑 THIS IS THE IMPORTANT PART
+        points = response.points
+
+        texts = []
+        for p in points:
+            if p.payload and "text" in p.payload:
+                texts.append(p.payload["text"])
+
+        return "\n".join(texts)
