@@ -1,5 +1,8 @@
 from qdrant_client.http.models import VectorParams, Distance
 from config.qdrant_client import get_qdrant_client
+from fastembed import TextEmbedding
+import uuid
+from storage.chunking import chunk_text
 
 
 class DocumentStore:
@@ -14,6 +17,7 @@ class DocumentStore:
         self.client = get_qdrant_client()
         self.vector_size = vector_size
         self._ensure_collection()
+        self.embedder = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
     def _ensure_collection(self) -> None:
         """
@@ -30,3 +34,35 @@ class DocumentStore:
                     distance=Distance.COSINE
                 )
             )
+
+    def save_document(self, text: str, metadata: dict | None = None) -> str:
+        """
+        Chunk text, embed chunks, and store them in Qdrant.
+        Returns document ID.
+        """
+        doc_id = str(uuid.uuid4())
+        chunks = chunk_text(text)
+
+        embeddings = list(self.embedder.embed(chunks))
+
+        points = []
+        for idx, (chunk, vector) in enumerate(zip(chunks, embeddings)):
+            points.append({
+                "id": str(uuid.uuid4()),
+                "vector": vector,
+                "payload": {
+                    "doc_id": doc_id,
+                    "chunk_index": idx,
+                    "text": chunk,
+                    **(metadata or {})
+                }
+            })
+
+
+        self.client.upsert(
+            collection_name=self.COLLECTION_NAME,
+            points=points
+        )
+
+        return doc_id
+
