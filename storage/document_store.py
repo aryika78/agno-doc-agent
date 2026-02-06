@@ -118,3 +118,17 @@ class DocumentStore:
                 texts.append(p.payload["text"])
 
         return "\n".join(texts)
+    
+    def delete_document(self, doc_id: str) -> None:
+        """
+        Delete all vectors belonging to a document.
+        """
+        self.client.delete(
+            collection_name=self.COLLECTION_NAME,
+            points_selector=Filter(
+                must=[
+                    {"key": "doc_id", "match": {"value": doc_id}}
+                ]
+            )
+        )
+

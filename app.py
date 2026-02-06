@@ -118,6 +118,29 @@ if st.session_state.documents:
     )
 
     st.session_state.active_doc = st.session_state.documents[selected_file]
+    if st.session_state.active_doc:
+        if st.button("🗑️ Delete selected document"):
+            # Find filename
+            filename_to_delete = next(
+                name for name, did in st.session_state.documents.items()
+                if did == st.session_state.active_doc
+            )
+
+            store.delete_document(st.session_state.active_doc)
+
+            # Remove from session state
+            del st.session_state.documents[filename_to_delete]
+
+            # Reset active doc
+            st.session_state.active_doc = (
+                next(iter(st.session_state.documents.values()), None)
+            )
+
+            st.session_state.chat_history = []
+
+            st.success(f"🗑️ '{filename_to_delete}' deleted.")
+            st.rerun()
+
 
 
 st.divider()
