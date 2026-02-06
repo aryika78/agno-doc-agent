@@ -152,17 +152,29 @@ if st.session_state.active_doc:
 
     # 1️⃣ Render history
     for idx, (role, msg) in enumerate(st.session_state.chat_history):
+        if role == "assistant" and isinstance(msg, dict):
+            content = msg["content"]
+            is_json_block = msg["type"] == "json"
+        else:
+            content = msg
+            is_json_block = False
+
         is_pretty = st.session_state.pretty_flags.get(idx, False)
-        display_text = prettify_response(msg) if (role == "assistant" and is_pretty) else msg
+        display_text = (
+            prettify_response(content)
+            if (is_json_block and is_pretty)
+            else content
+        )
 
         with st.chat_message(role):
             st.markdown(display_text)
 
-        if role == "assistant" and is_json(msg):
+        if role == "assistant" and is_json_block:
             btn_label = "🔙 Show Original" if is_pretty else "✨ Prettify Output"
             if st.button(btn_label, key=f"pretty_btn_{idx}"):
                 st.session_state.pretty_flags[idx] = not is_pretty
                 st.rerun()
+
 
     # 2️⃣ Input
     user_query = st.chat_input("Ask something about the document...")
@@ -185,5 +197,6 @@ if st.session_state.active_doc:
         orch = OrchestratorAgent(context_text)
         response = orch.handle(user_query)
 
-        st.session_state.chat_history.append(("assistant", response))
+        for block in response:
+            st.session_state.chat_history.append(("assistant", block))
         st.rerun()

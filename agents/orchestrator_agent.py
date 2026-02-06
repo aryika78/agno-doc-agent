@@ -84,7 +84,7 @@ class OrchestratorAgent:
 
         return tasks
 
-    def handle(self, user_query: str) -> str:
+    def handle(self, user_query: str) -> list[dict]:
         outputs = []
         tasks = self.classify_intent(user_query)
         tasks.sort(key=lambda x: 0 if x[0] == "summary" else 1)
@@ -95,8 +95,8 @@ class OrchestratorAgent:
             # 🔴 Priority control
             intents_in_same_part = [i for i, p in tasks if p == query_part]
 
-            # If JSON exists for this part → run ONLY json
-            if "json" in intents_in_same_part and intent != "json":
+            # Allow summary + json together
+            if "json" in intents_in_same_part and intent not in ["json", "summary"]:
                 continue
 
             # If Summary exists → skip QA
