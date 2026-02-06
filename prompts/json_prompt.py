@@ -21,11 +21,11 @@ RULES:
 
 4. Output ONE valid JSON object in this exact structure:
 
-{
-  "entities": {
+{{
+  "entities": {{
     "EntityType": ["value1", "value2"]
-  }
-}
+  }}
+}}
 
 5. Omit entity types that are not present.
 6. Do NOT add explanations or extra fields.
