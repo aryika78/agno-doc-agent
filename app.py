@@ -78,6 +78,10 @@ if "pretty_flags" not in st.session_state:
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
 
+if "upload_success_msg" not in st.session_state:
+    st.session_state.upload_success_msg = None
+
+
 # ---------------- FILE UPLOAD ----------------
 uploaded_file = st.file_uploader(
     "Upload a document (.txt, .pdf, .docx)",
@@ -113,6 +117,7 @@ if uploaded_file:
                 st.session_state.chat_history = []
 
                 st.session_state.uploader_key += 1
+                st.session_state.upload_success_msg = f"✅ '{filename}' indexed and ready!"
                 st.rerun()
 
         with col2:
@@ -134,7 +139,12 @@ if uploaded_file:
         st.session_state.chat_history = []
 
         st.session_state.uploader_key += 1
+        st.session_state.upload_success_msg = f"✅ '{filename}' indexed and ready!"
         st.rerun()
+        
+if st.session_state.upload_success_msg:
+    st.success(st.session_state.upload_success_msg)
+    st.session_state.upload_success_msg = None
 
 # ---------------- DOCUMENT SELECTOR ----------------
 if st.session_state.documents:

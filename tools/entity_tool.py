@@ -1,10 +1,10 @@
 from prompts.entity_prompt import ENTITY_PROMPT
 from azure_client import client, DEPLOYMENT_REASONING
 
-def entity_finder_tool(document_text: str, user_query: str) -> str:
+def entity_finder_tool(entities: list[str], user_query: str) -> str:
     prompt = ENTITY_PROMPT.format(
-    document_text=document_text.strip(),
-    user_query=user_query.strip())
+        entities="\n".join(entities)
+    )
 
     response = client.chat.completions.create(
         model=DEPLOYMENT_REASONING,

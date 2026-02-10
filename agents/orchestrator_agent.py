@@ -56,15 +56,18 @@ class OrchestratorAgent:
             if not part:
                 continue
 
+            added = False
+
             if any(w in part for w in ["summarize", "summary", "key insight", "key idea"]):
                 tasks.append(("summary", part))
+                added = True
 
-            if any(w in part for w in ["extract", "list", "show", "find"]):
+            if any(w in part for w in ["extract", "list", "show", "find", "give"]):
                 tasks.append(("entities", part))
+                added = True
 
-            if not tasks:
+            if not added:
                 tasks.append(("qa", part))
-
         return tasks
 
     def handle(self, user_query: str) -> list[dict]:
@@ -87,18 +90,17 @@ class OrchestratorAgent:
                     outputs.append(summary)
 
             elif intent == "entities":
-                result = self.extractor.extract_entities(query_part)["entities"]
+                result = self.extractor.extract_entities("extract entities: " + query_part)["entities"]
 
                 if json_mode:
-                    json_output.update(result)
+                    json_output["entities"] = result
                 else:
-                    lowered = query_part.lower()
-                    lines = []
-                    for k, v in result.items():
-                        if k.lower() in lowered or not any(word in lowered for word in result.keys()):
-                            lines.append(f"{k} = [{', '.join(v)}]")
+                    if not result:
+                        outputs.append("No valid entities found in this document.")
+                    else:
+                        lines = [f"{k} = [{', '.join(v)}]" for k, v in result.items()]
+                        outputs.append("\n\n".join(lines))
 
-                    outputs.append("\n\n".join(lines))
 
             elif intent == "qa" and not json_mode:
                 outputs.append(self.analyst.answer(query_part))

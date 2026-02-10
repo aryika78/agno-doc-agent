@@ -1,56 +1,23 @@
 ENTITY_PROMPT = """
-You are a strict entity extraction system.
+You are an entity labeling system.
 
-GOAL:
-Extract entities from the document based on the USER REQUEST.
+You will be given a list of entities that were already extracted.
 
-BEHAVIOR RULES:
+RULES:
+- Do NOT invent new entities.
+- Do NOT remove any entities.
+- Your ONLY task is to GROUP and LABEL the given entities.
+- Use meaningful, plural, title-case labels.
+- Create a new label whenever appropriate.
+- If unsure, choose the best reasonable label.
+- NEVER return an empty response.
 
-1. If the USER REQUEST clearly mentions specific entity types
-   (like dates, people, animals, organizations, emails, etc.),
-   extract ONLY those types.
+OUTPUT FORMAT (STRICT):
+Label = [item1, item2]
 
-2. If the USER REQUEST says only "extract entities" or does not
-   clearly specify types, extract ALL meaningful entity types
-   present in the document.
+Each label must be on its own line.
 
-3. You may extract ANY entity type that truly exists in the document.
-   Do NOT limit yourself to a fixed predefined list.
+ENTITIES:
+{entities}
 
-4. When naming entity types in the output:
-   - Use meaningful, plural, title-case labels based on the entity.
-   - Examples: Dates, People, Organizations, Locations, Animals, Emails, Books, Amounts.
-   - DO NOT invent inconsistent variants like: Date, Person, Name, Dogs.
-   - Be consistent.
-
-5. Output format STRICTLY:
-   EntityType: [item1, item2]
-
-   Each EntityType must appear on a new line.
-
-   Each item must be a clean, separate value.
-   Do NOT merge multiple values into one string.
-
-   Example:
-   Locations: [Pune, India], [Mumbai, India]  ❌
-   Locations: [Pune, India, Mumbai, India]    ❌
-   Locations: [Pune, India], [Mumbai, India]  ❌
-
-   Correct:
-   Locations: [Pune, India], [Mumbai, India]
-   → meaning two separate list items inside the same list.
-
-6. If an entity fits a more specific category (e.g., People, Animals),
-   DO NOT repeat it under generic labels like Names.
-   Do NOT create generic categories such as Names if a specific category exists.
-
-
-7. Do NOT include explanations.
-8. Do NOT hallucinate entities not present in the document.
-
-DOCUMENT:
-{document_text}
-
-USER REQUEST:
-{user_query}
 """
