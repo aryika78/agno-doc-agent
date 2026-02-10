@@ -2,5 +2,5 @@ openai
 python-dotenv
 python-docx
 PyPDF2
-agno
+agno[azure]
 streamlit

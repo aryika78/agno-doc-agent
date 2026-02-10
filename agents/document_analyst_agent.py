@@ -1,6 +1,5 @@
 from tools.classifier_tool import doc_classifier_tool
-from tools.summary_tool import smart_summary_tool
-from tools.qa_tool import qa_from_doc_tool
+from tools.agno_tools import qa_from_document, summarize_document
 import re
 
 
@@ -46,7 +45,7 @@ class DocumentAnalystAgent:
         ]
 
         if any(t in query_lower for t in INSIGHT_TRIGGERS):
-            answer = qa_from_doc_tool(self.document_text, user_query)
+            answer = qa_from_document(self.document_text, user_query)
             return str(answer).strip()
 
         # ---- detect count ----
@@ -60,7 +59,7 @@ class DocumentAnalystAgent:
         )
 
         # ---- RAW FACTS FROM LLM ----
-        raw = smart_summary_tool(self.document_text, user_query)
+        raw = summarize_document(self.document_text, user_query)
 
         if not isinstance(raw, str):
             raw = str(raw)
@@ -85,7 +84,7 @@ class DocumentAnalystAgent:
         QA ONLY.
         Never return JSON.
         """
-        answer = qa_from_doc_tool(self.document_text, user_query)
+        answer = qa_from_document(self.document_text, user_query)
 
         if not isinstance(answer, str):
             answer = str(answer)

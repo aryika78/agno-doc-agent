@@ -1,5 +1,5 @@
 import re
-from tools.entity_tool import entity_finder_tool
+from tools.agno_tools import extract_entities_from_document
 
 
 class ExtractionAgent:
@@ -26,7 +26,7 @@ class ExtractionAgent:
         if not text or not text.strip():
             return {"entities": {}}
 
-        raw = entity_finder_tool(text, user_query)
+        raw = extract_entities_from_document(text, user_query)
 
         labelled = {}
         if isinstance(raw, str) and raw.strip():

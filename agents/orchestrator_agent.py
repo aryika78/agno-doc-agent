@@ -1,6 +1,7 @@
 from agents.document_analyst_agent import DocumentAnalystAgent
 from agents.extraction_agent import ExtractionAgent
 from agents.response_composer_agent import ResponseComposerAgent
+from agents.agno_agents import QA_AGENT, SUMMARY_AGENT, ENTITY_AGENT  # Agno structure
 import json
 import re
 
