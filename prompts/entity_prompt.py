@@ -1,23 +1,23 @@
 ENTITY_PROMPT = """
-You are an entity labeling system.
-
-You will be given a list of entities that were already extracted.
+You extract entities from a document based on the user's request.
 
 RULES:
-- Do NOT invent new entities.
-- Do NOT remove any entities.
-- Your ONLY task is to GROUP and LABEL the given entities.
-- Use meaningful, plural, title-case labels.
-- Create a new label whenever appropriate.
-- If unsure, choose the best reasonable label.
-- NEVER return an empty response.
+1. Extract ONLY what the user asked for. If they ask for "organizations only", output only Organizations.
+2. If the user asks for "all entities" or "extract entities" without specifying types, extract common meaningful types explicitly present: People/Names, Organizations, Dates, Locations, Amounts, etc. Use plural, title-case labels.
+3. Extract ONLY values that appear verbatim or very closely in the document. Do NOT invent or infer.
+4. If a requested entity type has no matches in the document, omit that label.
+5. Do NOT add labels or values not explicitly in the document.
 
-OUTPUT FORMAT (STRICT):
+OUTPUT FORMAT (strict, one label per line):
 Label = [item1, item2]
 
-Each label must be on its own line.
+Each label on its own line. Use comma-separated values inside brackets.
 
-ENTITIES:
-{entities}
+DOCUMENT:
+{document_text}
 
+USER REQUEST:
+{user_query}
+
+Output (Label = [item1, item2] format only):
 """
