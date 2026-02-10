@@ -43,7 +43,7 @@ A **production-grade Prompt-Orchestrated Multi-Agent Document AI Assistant** bui
 
 ---
 
-## 🏗️ Project Structure (As Implemented)
+## 🏗️ Project Structure 
 
 ```
 AGNO_DOC_AGENT/
@@ -97,7 +97,7 @@ Supported intents:
 * `entities` – factual entity listing (text)
 * `json` – structured JSON output
 
-### Priority Rules (Locked)
+### Priority Rules 
 
 ```
 summary → json → qa → entities
@@ -138,6 +138,42 @@ Multi-intent queries are supported using connectors like:
 
 ---
 
+## 🚀 Setup Instructions
+
+### 1) Clone the repository
+
+```bash
+git clone https://github.com/aryika78/agno-doc-agent.git
+cd agno-doc-agent
+```
+
+### 2) Create virtual environment
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+### 3) Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4) Create `.env`
+
+Create a file named `.env` in the project root:
+
+```
+AZURE_OPENAI_API_KEY=your_key_here
+AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
+DEPLOYMENT_CLASSIFIER=your_4_1_nano_deployment
+DEPLOYMENT_SUMMARY=your_4_1_nano_deployment
+DEPLOYMENT_REASONING=your_5_nano_deployment
+```
+
+---
+
 ## ▶️ Running the System
 
 ```bash
@@ -165,6 +201,32 @@ streamlit run app.py
 ✔ Clean separation of text vs JSON
 ✔ No hallucinated entities
 ✔ Production-grade orchestration behavior
+
+---
+## 🧰 Tech Stack
+
+**Core**
+
+* Python
+* Streamlit
+
+**AI / LLM**
+
+* Agno (multi-agent orchestration)
+* Azure OpenAI
+
+  * gpt-4.1-nano
+  * gpt-5-nano
+
+**Document Processing**
+
+* PyPDF2
+* python-docx
+
+**Vector Search & Storage**
+
+* Qdrant
+* FastEmbed
 
 ---
 
