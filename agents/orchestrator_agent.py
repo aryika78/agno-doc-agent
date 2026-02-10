@@ -62,8 +62,14 @@ class OrchestratorAgent:
                 tasks.append(("summary", part))
                 added = True
 
-            if any(w in part for w in ["extract", "list", "show", "find", "give"]):
+            # "list X and their Y" / "show X and their Y" = structured list, not entity extraction
+            list_show = any(w in part for w in ["extract", "list", "show", "find", "give"])
+            relationship = any(p in part.lower() for p in ["and their", "with their", "and its"])
+            if list_show and not relationship:
                 tasks.append(("entities", part))
+                added = True
+            elif list_show and relationship:
+                tasks.append(("qa", part))
                 added = True
 
             if not added:

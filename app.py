@@ -200,9 +200,12 @@ if st.session_state.active_doc:
     if query:
         st.session_state.chat_history.append(("user", query))
 
+        q_lower = query.lower()
+        top_k = 15 if any(p in q_lower for p in ["list all", "show all"]) else 5
         context = store.search(
             query=query,
-            doc_id=st.session_state.active_doc
+            doc_id=st.session_state.active_doc,
+            top_k=top_k
         )
 
         orch = OrchestratorAgent(context)
