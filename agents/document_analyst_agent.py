@@ -1,7 +1,6 @@
 from tools.classifier_tool import doc_classifier_tool
 from tools.summary_tool import smart_summary_tool
 from tools.qa_tool import qa_from_doc_tool
-from prompts.summary_prompt import SUMMARY_PROMPT
 import re
 
 
@@ -61,13 +60,14 @@ class DocumentAnalystAgent:
         )
 
         # ---- RAW FACTS FROM LLM ----
-        raw = smart_summary_tool(
-            self.document_text,
-            SUMMARY_PROMPT.format(document_text=self.document_text)
-        )
+        raw = smart_summary_tool(self.document_text, user_query)
 
         if not isinstance(raw, str):
             raw = str(raw)
+
+        # When user asks for JSON output, return raw - don't split or add bullets (mangles JSON)
+        if "json" in query_lower and raw.strip().startswith(("{", "[")):
+            return raw.strip()
 
         sentences = self._split_sentences(raw)
 

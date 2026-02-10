@@ -45,9 +45,9 @@ class OrchestratorAgent:
         if buffer.strip():
             clean_chunks.append(buffer.strip())
 
-        # Also split "X and extract Y" / "X and list Y" into [X, extract Y]
+        # Also split "X and extract Y" / "X ans extract Y" into [X, extract Y]
         expanded = []
-        and_extract_pattern = r"\s+and\s+(?=extract|list|show|find|give\b)"
+        and_extract_pattern = r"\s+an(?:d|s)\s+(?=extract|list|show|find|give\b)"
         for c in clean_chunks:
             expanded.extend(p.strip() for p in re.split(and_extract_pattern, c, flags=re.IGNORECASE) if p.strip())
 
@@ -65,14 +65,16 @@ class OrchestratorAgent:
 
             added = False
 
-            if any(w in part for w in ["summarize", "summary", "key insight", "key idea"]):
+            summary_related = any(w in part for w in ["summarize", "summary", "key insight", "key idea", "main idea", "overall idea"])
+            if summary_related:
                 tasks.append(("summary", part))
                 added = True
 
             # "list X and their Y" / "show X and their Y" = structured list, not entity extraction
+            # Don't add entities when "give summary" / "give key idea" etc - summary intent covers it
             list_show = any(w in part for w in ["extract", "list", "show", "find", "give"])
             relationship = any(p in part.lower() for p in ["and their", "with their", "and its"])
-            if list_show and not relationship:
+            if list_show and not relationship and not summary_related:
                 tasks.append(("entities", part))
                 added = True
             elif list_show and relationship:
@@ -99,12 +101,23 @@ class OrchestratorAgent:
         json_output = {}
         outputs = []
 
+        def _try_parse_json(s: str):
+            """Parse string as JSON if valid; return parsed object or original string."""
+            if not s or not isinstance(s, str):
+                return s
+            t = s.strip().lstrip("- ").strip()
+            try:
+                parsed = json.loads(t)
+                return parsed if isinstance(parsed, (dict, list)) else s
+            except (json.JSONDecodeError, TypeError):
+                return s
+
         for intent, query_part in tasks:
 
             if intent == "summary":
                 summary = self.analyst.summarize(query_part)
                 if json_mode:
-                    json_output["summary"] = summary
+                    json_output["summary"] = _try_parse_json(summary)
                 else:
                     outputs.append(summary)
 
