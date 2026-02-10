@@ -12,6 +12,15 @@ class ExtractionAgent:
             return False
         return item.strip().lower() in text.lower()
 
+    def _strip_quotes(self, s: str) -> str:
+        """Strip surrounding quotes only if both ends match."""
+        s = s.strip()
+        if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
+            return s[1:-1]
+        if len(s) >= 2 and s[0] == "'" and s[-1] == "'":
+            return s[1:-1]
+        return s
+
     def extract_entities(self, user_query: str):
         text = self.document_text
         if not text or not text.strip():
@@ -23,8 +32,11 @@ class ExtractionAgent:
         if isinstance(raw, str) and raw.strip():
             for label, values in re.findall(r"([A-Za-z ]+)\s*=\s*\[(.*?)\]", raw):
                 items = [v.strip() for v in values.split(",") if v.strip()]
-                # Keep only items that appear in the document
-                validated = [x for x in items if self._item_in_document(x, text)]
+                # Keep only items that appear in the document, strip surrounding quotes for clean output
+                validated = [
+                    self._strip_quotes(x) for x in items
+                    if self._item_in_document(x, text)
+                ]
                 if validated:
                     labelled[label.strip()] = validated
 

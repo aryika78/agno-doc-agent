@@ -1,6 +1,7 @@
 from agents.document_analyst_agent import DocumentAnalystAgent
 from agents.extraction_agent import ExtractionAgent
 from agents.response_composer_agent import ResponseComposerAgent
+import json
 import re
 
 
@@ -44,7 +45,13 @@ class OrchestratorAgent:
         if buffer.strip():
             clean_chunks.append(buffer.strip())
 
-        return clean_chunks
+        # Also split "X and extract Y" / "X and list Y" into [X, extract Y]
+        expanded = []
+        and_extract_pattern = r"\s+and\s+(?=extract|list|show|find|give\b)"
+        for c in clean_chunks:
+            expanded.extend(p.strip() for p in re.split(and_extract_pattern, c, flags=re.IGNORECASE) if p.strip())
+
+        return expanded
 
     def classify_intent(self, user_query: str) -> list[tuple[str, str]]:
         q = self.normalize_query(user_query)
@@ -83,6 +90,12 @@ class OrchestratorAgent:
         tasks = self.classify_intent(user_query)
         tasks.sort(key=lambda x: 0 if x[0] == "summary" else 1)
 
+        flow = " -> ".join(t[0] for t in tasks)
+        if json_mode:
+            flow += " -> json"
+        is_multi = len(tasks) > 1 or (len(tasks) == 1 and json_mode)
+        print(f"[Intent] {'multi' if is_multi else 'single'} intent: {flow}")
+
         json_output = {}
         outputs = []
 
@@ -108,8 +121,25 @@ class OrchestratorAgent:
                         outputs.append("\n\n".join(lines))
 
 
-            elif intent == "qa" and not json_mode:
-                outputs.append(self.analyst.answer(query_part))
+            elif intent == "qa":
+                answer = self.analyst.answer(query_part)
+                if json_mode:
+                    try:
+                        parsed = json.loads(answer.strip())
+                        if isinstance(parsed, dict) and len(parsed) == 1:
+                            k, v = next(iter(parsed.items()))
+                            if k.lower() in ("summary", "answer", "text") and isinstance(v, str):
+                                json_output["answer"] = v
+                            else:
+                                json_output["answer"] = parsed
+                        elif isinstance(parsed, (dict, list)):
+                            json_output["answer"] = parsed
+                        else:
+                            json_output["answer"] = answer
+                    except (json.JSONDecodeError, TypeError):
+                        json_output["answer"] = answer
+                else:
+                    outputs.append(answer)
 
         # 🔒 HARD GUARANTEE: NEVER RETURN None
         if json_mode:
