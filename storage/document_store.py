@@ -132,3 +132,12 @@ class DocumentStore:
             )
         )
 
+    def reset_all_documents(self) -> None:
+        """
+        Dev / Debug only.
+        Drops and recreates the entire collection.
+        """
+        self.client.delete_collection(self.COLLECTION_NAME)
+        self._ensure_collection()
+
+
