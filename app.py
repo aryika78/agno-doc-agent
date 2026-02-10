@@ -8,14 +8,6 @@ from document_loader import load_document
 from storage.document_store import DocumentStore
 
 
-def is_json(text: str) -> bool:
-    try:
-        json.loads(text)
-        return True
-    except Exception:
-        return False
-
-
 def prettify_response(content) -> str:
     if isinstance(content, dict):
         return (
@@ -23,7 +15,6 @@ def prettify_response(content) -> str:
             + json.dumps(content, indent=2)
             + "\n```"
         )
-
     try:
         data = json.loads(content)
         return (
@@ -54,6 +45,7 @@ if os.getenv("DEBUG_RESET") == "true":
         st.session_state.active_doc = None
         st.session_state.chat_history = []
         st.session_state.pretty_flags = {}
+        st.session_state.uploader_key = 0
         st.success("✅ All documents cleared (dev mode).")
         st.rerun()
 
@@ -62,14 +54,11 @@ if os.getenv("DEBUG_RESET") == "true":
 def cached_load_document(file_bytes: bytes, suffix: str):
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(file_bytes)
-        temp_path = tmp.name
-
+        path = tmp.name
     try:
-        text = load_document(temp_path)
+        return load_document(path)
     finally:
-        os.remove(temp_path)
-
-    return text
+        os.remove(path)
 
 # ---------------- SESSION STATE ----------------
 if "documents" not in st.session_state:
@@ -98,8 +87,8 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file:
     filename = uploaded_file.name
-    file_bytes = uploaded_file.read()
     suffix = "." + filename.split(".")[-1]
+    file_bytes = uploaded_file.read()
 
     existing_doc_id = store.document_exists(filename)
 
@@ -111,12 +100,11 @@ if uploaded_file:
 
         with col1:
             if st.button("✅ Yes, replace"):
-                document_text = cached_load_document(file_bytes, suffix)
+                text = cached_load_document(file_bytes, suffix)
 
                 store.delete_document(existing_doc_id)
-
                 new_doc_id = store.save_document(
-                    document_text,
+                    text,
                     metadata={"filename": filename}
                 )
 
@@ -125,19 +113,19 @@ if uploaded_file:
                 st.session_state.chat_history = []
 
                 st.session_state.uploader_key += 1
-                st.success(f"✅ '{filename}' replaced successfully.")
                 st.rerun()
 
         with col2:
             if st.button("❌ No, keep existing"):
+                # NOTHING changes except uploader reset
                 st.session_state.uploader_key += 1
                 st.rerun()
 
     else:
-        document_text = cached_load_document(file_bytes, suffix)
+        text = cached_load_document(file_bytes, suffix)
 
         doc_id = store.save_document(
-            document_text,
+            text,
             metadata={"filename": filename}
         )
 
@@ -145,7 +133,7 @@ if uploaded_file:
         st.session_state.active_doc = doc_id
         st.session_state.chat_history = []
 
-        st.success(f"✅ '{filename}' indexed and ready!")
+        st.session_state.uploader_key += 1
         st.rerun()
 
 # ---------------- DOCUMENT SELECTOR ----------------
@@ -154,8 +142,7 @@ if st.session_state.documents:
     st.subheader("📂 Select Active Document")
 
     filenames = list(st.session_state.documents.keys())
-
-    selected_file = st.selectbox(
+    selected = st.selectbox(
         "Active document",
         filenames,
         index=filenames.index(
@@ -166,72 +153,41 @@ if st.session_state.documents:
         )
     )
 
-    st.session_state.active_doc = st.session_state.documents[selected_file]
+    st.session_state.active_doc = st.session_state.documents[selected]
 
-    if st.session_state.active_doc:
-        if st.button("🗑️ Delete selected document"):
-            filename_to_delete = next(
-                name for name, did in st.session_state.documents.items()
-                if did == st.session_state.active_doc
-            )
+    if st.button("🗑️ Delete selected document"):
+        store.delete_document(st.session_state.active_doc)
+        del st.session_state.documents[selected]
+        st.session_state.active_doc = (
+            next(iter(st.session_state.documents.values()), None)
+        )
+        st.session_state.chat_history = []
+        st.rerun()
 
-            store.delete_document(st.session_state.active_doc)
-            del st.session_state.documents[filename_to_delete]
-
-            st.session_state.active_doc = (
-                next(iter(st.session_state.documents.values()), None)
-            )
-            st.session_state.chat_history = []
-
-            st.success(f"🗑️ '{filename_to_delete}' deleted.")
-            st.rerun()
-
+# ---------------- CHAT ----------------
 st.divider()
 st.subheader("💬 Chat with your document")
 
-# ---------------- CHAT UI ----------------
 if st.session_state.active_doc:
-
     for idx, (role, msg) in enumerate(st.session_state.chat_history):
-        if role == "assistant" and isinstance(msg, dict):
-            content = msg["content"]
-            is_json_block = msg["type"] == "json"
-        else:
-            content = msg
-            is_json_block = False
-
-        is_pretty = st.session_state.pretty_flags.get(idx, False)
-        display_text = (
-            prettify_response(content)
-            if (is_json_block and is_pretty)
-            else content
-        )
-
         with st.chat_message(role):
-            st.markdown(display_text)
+            st.markdown(
+                prettify_response(msg["content"])
+                if isinstance(msg, dict)
+                else msg
+            )
 
-        if role == "assistant" and is_json_block:
-            label = "🔙 Show Original" if is_pretty else "✨ Prettify Output"
-            if st.button(label, key=f"pretty_btn_{idx}"):
-                st.session_state.pretty_flags[idx] = not is_pretty
-                st.rerun()
+    query = st.chat_input("Ask something about the document...")
+    if query:
+        st.session_state.chat_history.append(("user", query))
 
-    user_query = st.chat_input("Ask something about the document...")
-
-    if user_query:
-        st.session_state.chat_history.append(("user", user_query))
-
-        list_keywords = ["extract", "list", "show", "find"]
-        top_k = 8 if any(k in user_query.lower() for k in list_keywords) else 5
-
-        context_text = store.search(
-            query=user_query,
-            top_k=top_k,
+        context = store.search(
+            query=query,
             doc_id=st.session_state.active_doc
         )
 
-        orch = OrchestratorAgent(context_text)
-        response = orch.handle(user_query) or []
+        orch = OrchestratorAgent(context)
+        response = orch.handle(query) or []
 
         for block in response:
             st.session_state.chat_history.append(("assistant", block))

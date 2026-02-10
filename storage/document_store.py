@@ -32,6 +32,21 @@ class DocumentStore:
                 )
             )
 
+            # ✅ Create payload index AFTER collection exists
+            self.client.create_payload_index(
+                collection_name=self.COLLECTION_NAME,
+                field_name="filename",
+                field_schema="keyword"
+            )
+
+            self.client.create_payload_index(
+                collection_name=self.COLLECTION_NAME,
+                field_name="doc_id",
+                field_schema="keyword"
+            )
+
+
+
     # ---------------- NEW ----------------
     def list_documents(self) -> dict:
         """
@@ -64,11 +79,39 @@ class DocumentStore:
 
     def document_exists(self, filename: str) -> str | None:
         """
-        Returns doc_id if document already exists, else None.
+        Returns doc_id if a document with this filename exists in Qdrant.
+        Deterministic and safe against chunk duplication.
         """
-        docs = self.list_documents()
-        return docs.get(filename)
+        doc_ids = set()
+        offset = None
 
+        while True:
+            points, offset = self.client.scroll(
+                collection_name=self.COLLECTION_NAME,
+                with_payload=True,
+                limit=100,
+                offset=offset,
+                scroll_filter=Filter(
+                    must=[
+                        {"key": "filename", "match": {"value": filename}}
+                    ]
+                )
+            )
+
+            for p in points:
+                payload = p.payload or {}
+                doc_id = payload.get("doc_id")
+                if doc_id:
+                    doc_ids.add(doc_id)
+
+            if offset is None:
+                break
+
+        if not doc_ids:
+            return None
+
+        # There should be exactly ONE doc_id per filename
+        return next(iter(doc_ids))
     # ---------------- EXISTING ----------------
     def save_document(self, text: str, metadata: dict | None = None) -> str:
         doc_id = str(uuid.uuid4())
