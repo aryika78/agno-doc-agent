@@ -8,22 +8,27 @@ from document_loader import load_document
 from storage.document_store import DocumentStore
 
 
-def prettify_response(content) -> str:
-    if isinstance(content, dict):
-        return (
-            "### ✅ Structured Output\n\n```json\n"
-            + json.dumps(content, indent=2)
-            + "\n```"
-        )
-    try:
-        data = json.loads(content)
-        return (
-            "### ✅ Structured Output\n\n```json\n"
-            + json.dumps(data, indent=2)
-            + "\n```"
-        )
-    except Exception:
-        return content
+def _format_json(content, prettify: bool) -> str:
+    """Format dict or JSON string as displayable markdown."""
+    data = content if isinstance(content, dict) else json.loads(content)
+    json_str = json.dumps(data, indent=2 if prettify else None)
+    return f"```json\n{json_str}\n```"
+
+
+def _is_json_content(msg) -> bool:
+    """True if message content is JSON (dict or parseable string)."""
+    if not isinstance(msg, dict):
+        return False
+    c = msg.get("content")
+    if isinstance(c, dict):
+        return True
+    if isinstance(c, str):
+        try:
+            json.loads(c)
+            return True
+        except Exception:
+            pass
+    return False
 
 
 st.set_page_config(page_title="📄 Document AI Assistant", layout="wide")
@@ -181,11 +186,15 @@ st.subheader("💬 Chat with your document")
 if st.session_state.active_doc:
     for idx, (role, msg) in enumerate(st.session_state.chat_history):
         with st.chat_message(role):
-            st.markdown(
-                prettify_response(msg["content"])
-                if isinstance(msg, dict)
-                else msg
-            )
+            if role == "assistant" and _is_json_content(msg):
+                is_prettified = st.toggle("Prettify JSON", value=True, key=f"prettify_{idx}")
+                c = msg["content"]
+                data = c if isinstance(c, dict) else json.loads(c)
+                st.markdown(_format_json(data, is_prettified))
+            elif isinstance(msg, dict):
+                st.markdown(msg.get("content", ""))
+            else:
+                st.markdown(msg)
 
     query = st.chat_input("Ask something about the document...")
     if query:
