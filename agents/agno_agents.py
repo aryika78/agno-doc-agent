@@ -1,33 +1,33 @@
 """
-Agno Agent instances for QA, Summary, and Entity extraction.
-Orchestrator calls tools directly; Agents provide structure.
+Agno Agent for document processing.
+Single agent handles QA, summarization, and entity extraction.
+The LLM decides how to respond based on the user's query.
 """
 import os
+from dotenv import load_dotenv
 from agno.agent import Agent
 from agno.models.azure import AzureOpenAI
-from tools.agno_tools import (
-    qa_from_document,
-    summarize_document,
-    extract_entities_from_document,
-)
+from prompts.agent_prompt import AGENT_INSTRUCTIONS
 
-_DEPLOYMENT_REASONING = os.getenv("DEPLOYMENT_REASONING")
-_DEPLOYMENT_SUMMARY = os.getenv("DEPLOYMENT_SUMMARY")
+load_dotenv()
 
-QA_AGENT = Agent(
-    model=AzureOpenAI(id=_DEPLOYMENT_REASONING),
-    tools=[qa_from_document],
-    description="Answers questions about documents",
-)
+_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+_AZURE_ENDPOINT = "https://vanshavali-ai-resource.cognitiveservices.azure.com"
+_API_VERSION = "2024-02-01"
+_DEPLOYMENT_REASONING = os.getenv("DEPLOYMENT_REASONING", "gpt-5-nano")
 
-SUMMARY_AGENT = Agent(
-    model=AzureOpenAI(id=_DEPLOYMENT_SUMMARY),
-    tools=[summarize_document],
-    description="Summarizes documents based on user request",
-)
 
-ENTITY_AGENT = Agent(
-    model=AzureOpenAI(id=_DEPLOYMENT_REASONING),
-    tools=[extract_entities_from_document],
-    description="Extracts entities from documents",
-)
+def create_document_agent() -> Agent:
+    """Create and return the document processing Agent."""
+    return Agent(
+        name="Document Agent",
+        model=AzureOpenAI(
+            id=_DEPLOYMENT_REASONING,
+            azure_endpoint=_AZURE_ENDPOINT,
+            azure_deployment=_DEPLOYMENT_REASONING,
+            api_key=_API_KEY,
+            api_version=_API_VERSION,
+        ),
+        instructions=[AGENT_INSTRUCTIONS],
+        markdown=True,
+    )

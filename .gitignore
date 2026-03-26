@@ -1,6 +1,7 @@
 venv/
 __pycache__/
 *.pyc
+*.tmp.*
 .env
 *.pdf
 *.docx
@@ -8,3 +9,5 @@ __pycache__/
 sample_*.txt
 temp_doc
 
+.claude
+CLAUDE.md

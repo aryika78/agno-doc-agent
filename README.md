@@ -1,163 +1,72 @@
-# 📘 Prompt-Orchestrated Multi-Agent Document Processing System
+# 📘 Agentic Document Processing System
 
-A **production-grade Prompt-Orchestrated Multi-Agent Document AI Assistant** built using **Streamlit**, **Qdrant**, **Agno-style agent orchestration**, and Azure OpenAI models. The system provides deterministic, multi-intent document understanding over **PDF / DOCX / TXT** files with strict separation of text and JSON outputs.
+An **agentic document AI assistant** built using **Agno**, **Streamlit**, **Qdrant**, and **Azure OpenAI**. A single Agno Agent (gpt-5-nano) handles QA, summarization, and entity extraction over **PDF / DOCX / TXT** files — the LLM decides how to respond based on the user's query.
 
 ---
 
-## ✨ Features 
+## ✨ Features
 
 * Upload and persist **PDF / DOCX / TXT** documents
-* Chat with a selected document (grounded strictly in document content)
-* **Multi-intent queries in a single sentence** (QA + summary + entities + JSON)
-* Deterministic **bullet summaries** (length-aware, text-only)
-* **Structured JSON extraction** (only when explicitly requested)
-* **Factual entity extraction only**:
-
-  * Dates
-  * People
-  * Organizations
-  * Locations
-  * Amounts
-* No hallucinated entities or inferred concepts
+* Chat with a selected document (grounded in document content)
+* **QA, summarization, entity extraction, JSON output** — all handled by one Agno Agent
+* **Multi-intent queries** (e.g. "summarize and extract entities") — handled naturally in one response
+* **LLM-driven** — no rule-based routing, the model decides how to respond
 * Qdrant-backed **persistent vector storage** (no duplicate indexing)
-* Safe document lifecycle:
-
-  * Upload
-  * Replace (explicit confirmation)
-  * Delete
-* Streamlit chat UI with **JSON prettify toggle**
-* Document switching without restart
-* Stable behavior across Streamlit reruns
+* Safe document lifecycle: Upload, Replace (explicit confirmation), Delete
+* Streamlit chat UI with document switching
 
 ---
 
 ## 🧠 Design Philosophy
 
-> **The prompt defines the contract. Orchestration enforces the rules.**
+> **One agent, one LLM call, one response.**
 
-* A central **OrchestratorAgent** controls intent resolution and agent execution
-* **Rule-based intent classification** – the orchestrator uses `classify_intent()` with keyword/regex rules (not an LLM-based router)
-* Each agent is backed by a strict, single-purpose prompt via **agno_tools**
-* Deterministic intent priority prevents output mixing
-* **JSON and text outputs are never merged**
-* Qdrant is treated as the **single source of truth** for documents
+* A single Agno `Agent` with combined instructions handles all query types
+* The LLM reads the query and decides whether to summarize, answer, extract entities, or do multiple tasks
+* No Team, no routing, no delegation — the simplest architecture that works reliably
+* Qdrant is the **single source of truth** for documents
 
 ---
 
-## 🏗️ Project Structure 
+## 🏗️ Project Structure
 
 ```
 AGNO_DOC_AGENT/
 ├── agents/
-│   ├── agno_agents.py                 # Agno Agent definitions (QA, Summary, Entity)
-│   ├── document_analyst_agent.py      # QA + Summary
-│   ├── extraction_agent.py            # Entities + JSON
-│   ├── orchestrator_agent.py          # Intent logic & priority
-│   └── response_composer_agent.py     # Output normalization
+│   └── agno_agents.py              # Agno Agent definition
 │
 ├── config/
-│   └── qdrant_client.py                # Qdrant connection
+│   └── qdrant_client.py            # Qdrant connection
 │
 ├── prompts/
-│   ├── classifier_prompt.py
-│   ├── entity_prompt.py
-│   ├── json_prompt.py
-│   ├── orchestrator_prompt.py
-│   ├── qa_prompt.py
-│   ├── router_prompt.py
-│   └── summary_prompt.py
+│   └── agent_prompt.py             # Agent instructions
 │
 ├── storage/
-│   ├── chunking.py                     # Document chunking
-│   └── document_store.py               # Qdrant-backed persistence
+│   ├── chunking.py                 # Document chunking
+│   └── document_store.py           # Qdrant-backed persistence
 │
-├── tools/
-│   ├── agno_tools.py                  # QA, summary, entity (used by analyst & extractor)
-│   ├── classifier_tool.py
-│   ├── entity_tool.py
-│   ├── json_tool.py
-│   ├── qa_tool.py
-│   └── summary_tool.py
-│
-├── app.py                              # Streamlit application
-├── main.py
-├── document_loader.py
-├── azure_client.py
+├── app.py                          # Streamlit application
+├── document_loader.py              # PDF/DOCX/TXT loader
 ├── requirements.txt
 ├── README.md
 └── .gitignore
 ```
 
-
 ---
 
-## 📋 Implementation Notes
-
-**Tool usage**
-* **agno_tools** (`qa_from_document`, `summarize_document`, `extract_entities_from_document`) – used by `DocumentAnalystAgent` and `ExtractionAgent`
-* **classifier_tool** – used by `DocumentAnalystAgent` for document classification
-* Legacy tools (`entity_tool`, `json_tool`, `qa_tool`, `summary_tool`) exist but are **not used**; the analyst and extractor call `agno_tools` directly
-
-**Agno integration**
-* `agno_agents.py` defines `QA_AGENT`, `SUMMARY_AGENT`, `ENTITY_AGENT` with Agno `Agent` and tools
-* Execution path: the analyst and extractor call the tool functions directly; `agent.run()` is **not** used
-
-**Prompts**
-* `ORCHESTRATOR_PROMPT` and `ROUTER_PROMPT` exist but are **not used**; the orchestrator uses rule-based `classify_intent()` instead
-
-**Document context**
-* **Streamlit (`app.py`)**: Uses vector search to fetch relevant chunks as context; that context is passed to the orchestrator
-* **CLI (`main.py`)**: Passes the full document text to the orchestrator
-
----
-
-## 🧠 Intent Orchestration (Core Logic)
-
-Supported intents:
-
-* `qa` – natural language answers
-* `summary` – clean text summary
-* `entities` – factual entity listing (text)
-* `json` – structured JSON output
-
-### Priority Rules 
+## 🏛️ Architecture
 
 ```
-summary → json → qa → entities
+User Query
+    ↓
+DocumentStore.search() → retrieves relevant chunks from Qdrant
+    ↓
+Agno Agent (gpt-5-nano) → reads document context + query, responds directly
+    ↓
+Response returned to user
 ```
 
-Hard guarantees:
-
-* Any request mentioning **json** returns JSON only
-* JSON is never mixed with text output
-* Summary never includes entities or structured data
-* If `json` exists → entities are skipped
-* If `summary` exists → QA is skipped
-
-Multi-intent queries are supported using connectors like:
-
-* `then`
-* `also`
-* `next`
-
----
-
-## 📦 JSON Handling
-
-* JSON is produced **only when explicitly requested**
-* Returned once, in raw form
-* UI provides a **prettify toggle** (raw ↔ formatted)
-* Toggle appears **only for valid JSON blocks**
-
----
-
-## 🗂️ Document Persistence (Qdrant)
-
-* Qdrant is the single source of truth
-* Streamlit session state is hydrated from Qdrant on app start
-* Duplicate indexing is prevented
-* Safe document replacement with explicit confirmation
-* Delete action removes vectors and resets UI state
+One LLM call per query. The agent's instructions cover QA, summarization, entity extraction, and JSON output. The LLM decides what to do based on the query.
 
 ---
 
@@ -174,7 +83,8 @@ cd agno-doc-agent
 
 ```bash
 python -m venv venv
-venv\Scripts\activate
+venv\Scripts\activate        # Windows
+source venv/bin/activate     # Unix
 ```
 
 ### 3) Install dependencies
@@ -183,23 +93,17 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-Additionally, install **Qdrant** and **FastEmbed** for vector storage and embeddings (required for Streamlit):
+### 4) Start Qdrant
 
 ```bash
-pip install qdrant-client fastembed
+docker run -p 6333:6333 qdrant/qdrant
 ```
 
-Ensure Qdrant is running locally (default: `localhost:6333`).
-
-### 4) Create `.env`
-
-Create a file named `.env` in the project root:
+### 5) Create `.env`
 
 ```
 AZURE_OPENAI_API_KEY=your_key_here
-AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
-DEPLOYMENT_CLASSIFIER=your_4_1_nano_deployment
-DEPLOYMENT_SUMMARY=your_4_1_nano_deployment
+AZURE_OPENAI_ENDPOINT=https://your-resource-name.cognitiveservices.azure.com
 DEPLOYMENT_REASONING=your_5_nano_deployment
 ```
 
@@ -215,49 +119,33 @@ streamlit run app.py
 
 ## 🧪 Example Queries
 
-* summarize this document in 3 lines
-* what is the project deadline
-* extract people and dates
-* extract entities then give json
-* explain this document briefly
-* who are the people mentioned
+* what is this document about?
+* summarize this document in 3 bullet points
+* who signed the agreement?
+* extract all people and organizations
+* summarize and extract all entities
+* list all projects as json
+* what are the payment terms?
 
 ---
 
-## 📌 Final System Guarantees
-
-✔ Persistent, duplicate-free documents
-✔ Stable Streamlit reruns
-✔ Deterministic multi-intent handling
-✔ Clean separation of text vs JSON
-✔ No hallucinated entities
-✔ Production-grade orchestration behavior
-
----
 ## 🧰 Tech Stack
 
 **Core**
-
 * Python
 * Streamlit
 
 **AI / LLM**
-
-* Agno (multi-agent orchestration)
-* Azure OpenAI
-
-  * gpt-4.1-nano
-  * gpt-5-nano
+* Agno (Agent framework)
+* Azure OpenAI (gpt-5-nano)
 
 **Document Processing**
-
 * PyPDF2
 * python-docx
 
 **Vector Search & Storage**
-
 * Qdrant
-* FastEmbed
+* FastEmbed (BAAI/bge-small-en-v1.5)
 
 ---
 

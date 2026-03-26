@@ -1,6 +1,8 @@
+agno[azure]
 openai
+streamlit
+qdrant-client
+fastembed
 python-dotenv
 python-docx
 PyPDF2
-agno[azure]
-streamlit

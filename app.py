@@ -3,32 +3,9 @@ import tempfile
 import os
 import json
 
-from agents.orchestrator_agent import OrchestratorAgent
+from agents.agno_agents import create_document_agent
 from document_loader import load_document
 from storage.document_store import DocumentStore
-
-
-def _format_json(content, prettify: bool) -> str:
-    """Format dict or JSON string as displayable markdown."""
-    data = content if isinstance(content, dict) else json.loads(content)
-    json_str = json.dumps(data, indent=2 if prettify else None)
-    return f"```json\n{json_str}\n```"
-
-
-def _is_json_content(msg) -> bool:
-    """True if message content is JSON (dict or parseable string)."""
-    if not isinstance(msg, dict):
-        return False
-    c = msg.get("content")
-    if isinstance(c, dict):
-        return True
-    if isinstance(c, str):
-        try:
-            json.loads(c)
-            return True
-        except Exception:
-            pass
-    return False
 
 
 st.set_page_config(page_title="📄 Document AI Assistant", layout="wide")
@@ -49,7 +26,6 @@ if os.getenv("DEBUG_RESET") == "true":
         st.session_state.documents = {}
         st.session_state.active_doc = None
         st.session_state.chat_history = []
-        st.session_state.pretty_flags = {}
         st.session_state.uploader_key = 0
         st.success("✅ All documents cleared (dev mode).")
         st.rerun()
@@ -76,9 +52,6 @@ if "active_doc" not in st.session_state:
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
-
-if "pretty_flags" not in st.session_state:
-    st.session_state.pretty_flags = {}
 
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
@@ -184,15 +157,16 @@ st.divider()
 st.subheader("💬 Chat with your document")
 
 if st.session_state.active_doc:
-    for idx, (role, msg) in enumerate(st.session_state.chat_history):
+    for role, msg in st.session_state.chat_history:
         with st.chat_message(role):
-            if role == "assistant" and _is_json_content(msg):
-                is_prettified = st.toggle("Prettify JSON", value=True, key=f"prettify_{idx}")
-                c = msg["content"]
-                data = c if isinstance(c, dict) else json.loads(c)
-                st.markdown(_format_json(data, is_prettified))
-            elif isinstance(msg, dict):
-                st.markdown(msg.get("content", ""))
+            # Detect JSON in response and render as formatted code block
+            stripped = msg.strip() if isinstance(msg, str) else ""
+            if role == "assistant" and stripped.startswith(("{", "[")):
+                try:
+                    parsed = json.loads(stripped)
+                    st.code(json.dumps(parsed, indent=2), language="json")
+                except (json.JSONDecodeError, TypeError):
+                    st.markdown(msg)
             else:
                 st.markdown(msg)
 
@@ -200,18 +174,28 @@ if st.session_state.active_doc:
     if query:
         st.session_state.chat_history.append(("user", query))
 
-        q_lower = query.lower()
-        top_k = 15 if any(p in q_lower for p in ["list all", "show all"]) else 5
         context = store.search(
             query=query,
             doc_id=st.session_state.active_doc,
-            top_k=top_k
+            top_k=10
         )
 
-        orch = OrchestratorAgent(context)
-        response = orch.handle(query) or []
+        agent = create_document_agent()
+        input_msg = f"DOCUMENT:\n{context}\n\nUSER QUERY: {query}"
+        result = agent.run(input_msg, stream=False)
+        content = result.content or ""
 
-        for block in response:
-            st.session_state.chat_history.append(("assistant", block))
+        # Azure content filter sometimes falsely blocks queries — retry with rephrased input
+        if "content management policy" in content or "content_filter" in content:
+            result = agent.run(
+                f"DOCUMENT:\n{context}\n\nUSER QUERY: Based on the document, {query}",
+                stream=False,
+            )
+            content = result.content or ""
+
+        if "content management policy" in content or "content_filter" in content:
+            content = "Sorry, I couldn't process that query. Please try rephrasing your question."
+
+        st.session_state.chat_history.append(("assistant", content))
 
         st.rerun()
