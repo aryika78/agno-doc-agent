@@ -1,34 +1,38 @@
-# 📘 Agentic Document Processing System
+# Agentic Document Processing System
 
-An **agentic document AI assistant** built using **Agno**, **Streamlit**, **Qdrant**, and **Azure OpenAI**. A single Agno Agent (gpt-5-nano) handles QA, summarization, and entity extraction over **PDF / DOCX / TXT** files — the LLM decides how to respond based on the user's query.
+An **agentic document AI assistant** built using **Agno**, **Streamlit**, **Qdrant**, and **Azure OpenAI**. A single Agno Agent (gpt-5-nano) handles QA, summarization, entity extraction, visualizations, and more over **PDF / DOCX / TXT** files (including scanned PDFs via OCR) — the LLM decides how to respond based on the user's query.
 
 ---
 
-## ✨ Features
+## Features
 
-* Upload and persist **PDF / DOCX / TXT** documents
+* Upload and persist **PDF / DOCX / TXT** documents (including **scanned/image PDFs** via OCR)
 * Chat with a selected document (grounded in document content)
-* **QA, summarization, entity extraction, JSON output** — all handled by one Agno Agent
+* **QA, summarization, entity extraction, visualizations, JSON output** — all handled by one Agno Agent
+* **Smart visualizations** — bar, pie, grouped bar, stacked bar, timeline/Gantt, and table charts via Plotly
+* **Conversation memory** — agent remembers the last 4 exchanges for context (resolves pronouns, references)
+* **Suggested questions** — auto-generated on upload/document switch, diverse and content-focused
+* **Follow-up suggestions** — auto-generated after each response, with topic-exhaustion detection
+* **Document insights sidebar** — one-click deep analysis (people, organizations, key dates, highlights)
 * **Multi-intent queries** (e.g. "summarize and extract entities") — handled naturally in one response
-* **LLM-driven** — no rule-based routing, the model decides how to respond
+* **RAG guardrails** — agent refuses to chart or answer when data isn't in the document
 * Qdrant-backed **persistent vector storage** (no duplicate indexing)
 * Safe document lifecycle: Upload, Replace (explicit confirmation), Delete
-* Streamlit chat UI with document switching
 
 ---
 
-## 🧠 Design Philosophy
+## Design Philosophy
 
 > **One agent, one LLM call, one response.**
 
 * A single Agno `Agent` with combined instructions handles all query types
-* The LLM reads the query and decides whether to summarize, answer, extract entities, or do multiple tasks
+* The LLM reads the query and decides whether to summarize, answer, extract entities, visualize, or do multiple tasks
 * No Team, no routing, no delegation — the simplest architecture that works reliably
 * Qdrant is the **single source of truth** for documents
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 AGNO_DOC_AGENT/
@@ -39,14 +43,14 @@ AGNO_DOC_AGENT/
 │   └── qdrant_client.py            # Qdrant connection
 │
 ├── prompts/
-│   └── agent_prompt.py             # Agent instructions
+│   └── agent_prompt.py             # Agent instructions (QA, summary, charts, etc.)
 │
 ├── storage/
 │   ├── chunking.py                 # Document chunking
-│   └── document_store.py           # Qdrant-backed persistence
+│   └── document_store.py           # Qdrant-backed persistence + full text retrieval
 │
-├── app.py                          # Streamlit application
-├── document_loader.py              # PDF/DOCX/TXT loader
+├── app.py                          # Streamlit application (chat, charts, insights, suggestions)
+├── document_loader.py              # PDF/DOCX/TXT loader with OCR fallback
 ├── requirements.txt
 ├── README.md
 └── .gitignore
@@ -54,23 +58,25 @@ AGNO_DOC_AGENT/
 
 ---
 
-## 🏛️ Architecture
+## Architecture
 
 ```
 User Query
     ↓
-DocumentStore.search() → retrieves relevant chunks from Qdrant
+DocumentStore.search() → retrieves top 10 relevant chunks from Qdrant
     ↓
-Agno Agent (gpt-5-nano) → reads document context + query, responds directly
+build_chat_input() → combines document context + conversation history + query
     ↓
-Response returned to user
+Agno Agent (gpt-5-nano) → reads context, responds (text, JSON, or chart JSON)
+    ↓
+render_message() → detects response type and renders (markdown, JSON block, or Plotly chart)
 ```
 
-One LLM call per query. The agent's instructions cover QA, summarization, entity extraction, and JSON output. The LLM decides what to do based on the query.
+One LLM call per query. The agent's instructions cover QA, summarization, entity extraction, visualizations, and JSON output. The LLM decides what to do based on the query.
 
 ---
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 ### 1) Clone the repository
 
@@ -93,13 +99,24 @@ source venv/bin/activate     # Unix
 pip install -r requirements.txt
 ```
 
-### 4) Start Qdrant
+### 4) Install Tesseract OCR (for scanned PDF support)
+
+- Download from [UB-Mannheim/tesseract releases](https://github.com/UB-Mannheim/tesseract/releases)
+- Install to default path: `C:\Program Files\Tesseract-OCR`
+
+### 5) Install Poppler (for scanned PDF support)
+
+- Download from [poppler-windows releases](https://github.com/oschwartz10612/poppler-windows/releases)
+- Extract and note the path to the `Library\bin` folder
+- Update the `POPPLER_PATH` in `document_loader.py` if your path differs
+
+### 6) Start Qdrant
 
 ```bash
 docker run -p 6333:6333 qdrant/qdrant
 ```
 
-### 5) Create `.env`
+### 7) Create `.env`
 
 ```
 AZURE_OPENAI_API_KEY=your_key_here
@@ -109,7 +126,7 @@ DEPLOYMENT_REASONING=your_5_nano_deployment
 
 ---
 
-## ▶️ Running the System
+## Running the System
 
 ```bash
 streamlit run app.py
@@ -117,7 +134,7 @@ streamlit run app.py
 
 ---
 
-## 🧪 Example Queries
+## Example Queries
 
 * what is this document about?
 * summarize this document in 3 bullet points
@@ -125,11 +142,13 @@ streamlit run app.py
 * extract all people and organizations
 * summarize and extract all entities
 * list all projects as json
+* compare the technologies used across projects as a bar chart
+* show the project timeline as a Gantt chart
 * what are the payment terms?
 
 ---
 
-## 🧰 Tech Stack
+## Tech Stack
 
 **Core**
 * Python
@@ -140,8 +159,12 @@ streamlit run app.py
 * Azure OpenAI (gpt-5-nano)
 
 **Document Processing**
-* PyPDF2
+* PyPDF2 (text PDFs)
+* Tesseract + pdf2image (scanned/image PDFs via OCR)
 * python-docx
+
+**Visualization**
+* Plotly (bar, pie, grouped bar, stacked bar, timeline/Gantt, table)
 
 **Vector Search & Storage**
 * Qdrant
@@ -149,6 +172,6 @@ streamlit run app.py
 
 ---
 
-## 👩‍💻 Author
+## Author
 
 **Aryika Patni**
