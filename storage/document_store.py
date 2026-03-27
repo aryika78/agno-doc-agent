@@ -131,6 +131,9 @@ class DocumentStore:
                 }
             })
 
+        if not points:
+            raise ValueError("Document produced no text chunks — the file may be empty or unreadable.")
+
         self.client.upsert(
             collection_name=self.COLLECTION_NAME,
             points=points
@@ -162,6 +165,37 @@ class DocumentStore:
 
         return "\n".join(texts)
     
+    def get_full_text(self, doc_id: str) -> str:
+        """
+        Returns the full document text by fetching all chunks in order.
+        """
+        all_chunks = []
+        offset = None
+
+        while True:
+            points, offset = self.client.scroll(
+                collection_name=self.COLLECTION_NAME,
+                with_payload=True,
+                limit=100,
+                offset=offset,
+                scroll_filter=Filter(
+                    must=[{"key": "doc_id", "match": {"value": doc_id}}]
+                )
+            )
+
+            for p in points:
+                payload = p.payload or {}
+                idx = payload.get("chunk_index", 0)
+                text = payload.get("text", "")
+                if text:
+                    all_chunks.append((idx, text))
+
+            if offset is None:
+                break
+
+        all_chunks.sort(key=lambda x: x[0])
+        return "\n".join(text for _, text in all_chunks)
+
     def delete_document(self, doc_id: str) -> None:
         """
         Delete all vectors belonging to a document.

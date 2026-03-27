@@ -6,3 +6,6 @@ fastembed
 python-dotenv
 python-docx
 PyPDF2
+plotly
+pytesseract
+pdf2image
