@@ -52,6 +52,7 @@ AGNO_DOC_AGENT/
 ├── app.py                          # Streamlit application (chat, charts, insights, suggestions)
 ├── document_loader.py              # PDF/DOCX/TXT loader with OCR fallback
 ├── requirements.txt
+├── docker-compose.yml              # Qdrant with persistent storage
 ├── .env.example                    # Environment variable template
 ├── README.md
 └── .gitignore
@@ -117,8 +118,10 @@ pip install -r requirements.txt
 ### 6) Start Qdrant
 
 ```bash
-docker run -p 6333:6333 qdrant/qdrant
+docker-compose up -d
 ```
+
+This starts Qdrant with persistent storage. Data survives restarts.
 
 ### 7) Create `.env`
 
