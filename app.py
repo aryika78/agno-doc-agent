@@ -6,18 +6,52 @@ import re
 
 import plotly.graph_objects as go
 
-from agents.agno_agents import create_document_agent
+from agents.agno_agents import create_document_agent, create_tool_agent
 from document_loader import load_document
 from storage.document_store import DocumentStore
 
 
-st.set_page_config(page_title="Document AI Assistant", layout="wide")
+st.set_page_config(
+    page_title="Document AI Assistant",
+    page_icon=":page_facing_up:",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+# ---- Custom CSS for a cleaner look (works with both light and dark themes) ----
+st.markdown("""
+<style>
+    /* Tighter top padding */
+    .block-container { padding-top: 2rem; }
+
+    /* Suggested-question & follow-up buttons */
+    div.stButton > button {
+        border-radius: 1rem;
+        font-size: 0.85rem;
+        padding: 0.4rem 0.9rem;
+        transition: all 0.15s ease;
+    }
+    div.stButton > button:hover {
+        border-color: #636EFA;
+    }
+
+    /* Chat input area */
+    .stChatInput > div { border-radius: 1rem; }
+
+    /* Divider spacing */
+    hr { margin: 0.8rem 0; }
+</style>
+""", unsafe_allow_html=True)
 
 st.title("Document AI Assistant")
-st.caption("Chat with your document using the agentic AI system")
+st.caption("Upload a document, then chat with it — ask questions, get summaries, extract entities, or visualize data.")
 
 # ---------------- DOCUMENT STORE ----------------
-store = DocumentStore(vector_size=384)
+try:
+    store = DocumentStore(vector_size=384)
+except Exception:
+    st.error("Could not connect to Qdrant. Make sure it is running: `docker run -p 6333:6333 qdrant/qdrant`")
+    st.stop()
 
 # ---------------- DEV / DEBUG MAINTENANCE ----------------
 if os.getenv("DEBUG_RESET") == "true":
@@ -135,24 +169,6 @@ def _try_render_chart(text: str) -> bool:
     if chart_type == "timeline":
         if not items:
             return False
-        fig = go.Figure()
-        for i, item in enumerate(items):
-            if not isinstance(item, dict):
-                continue
-            label = item.get("label", "")
-            start = item.get("start", "")
-            end = item.get("end", "")
-            if not (label and start and end):
-                continue
-            color = COLORS[i % len(COLORS)]
-            fig.add_trace(go.Bar(
-                y=[label], x=[1],  # placeholder width
-                orientation="h",
-                marker_color=color,
-                showlegend=False,
-                hoverinfo="skip",
-            ))
-        # Rebuild as a proper timeline using scatter
         fig = go.Figure()
         valid_items = [it for it in items if isinstance(it, dict)
                        and it.get("label") and it.get("start") and it.get("end")]
@@ -326,9 +342,12 @@ def render_message(role: str, msg: str):
 # ================================================================
 #  FEATURE — Build chat context with history
 # ================================================================
-def build_chat_input(context: str, query: str, history: list) -> str:
+def build_chat_input(query: str, history: list, context: str | None = None) -> str:
     """Build the full input message including conversation history."""
-    parts = [f"DOCUMENT:\n{context}"]
+    parts = []
+
+    if context:
+        parts.append(f"DOCUMENT:\n{context}")
 
     # Include last 4 exchanges (8 messages) for conversational memory
     recent = history[-8:]
@@ -351,11 +370,10 @@ def build_chat_input(context: str, query: str, history: list) -> str:
 def generate_suggested_questions(doc_id: str) -> list[str]:
     """Ask the LLM to suggest 5 questions about the document."""
     full_text = store.get_full_text(doc_id)
-    preview = full_text[:2000]
     agent = create_document_agent()
 
     prompt = (
-        f"DOCUMENT:\n{preview}\n\n"
+        f"DOCUMENT:\n{full_text}\n\n"
         "USER QUERY: Suggest exactly 5 short questions that someone reading this document would want answered. "
         "Rules:\n"
         "- Questions must be about FACTS, DATA, or CONTENT inside the document (names, numbers, events, technologies, dates, comparisons, etc.).\n"
@@ -380,22 +398,33 @@ def generate_suggested_questions(doc_id: str) -> list[str]:
 def generate_doc_insights(doc_id: str) -> dict | None:
     """Extract structured insights from the document."""
     full_text = store.get_full_text(doc_id)
-    preview = full_text[:3000]
     agent = create_document_agent()
 
     prompt = (
-        f"DOCUMENT:\n{preview}\n\n"
-        "USER QUERY: Analyze this document thoroughly. Return ONLY a JSON object with:\n"
+        f"DOCUMENT:\n{full_text}\n\n"
+        "USER QUERY: Analyze this document in two steps.\n\n"
+        "STEP 1 — Think about what this document is and what a reader would want to know at a glance. "
+        "What are the most important categories of information in THIS specific document? "
+        "For example, a hiring contract's key info is parties, compensation, and terms — "
+        "while a technical spec's key info is system components, requirements, and constraints. "
+        "Every document is different.\n\n"
+        "STEP 2 — Extract that information into this JSON structure:\n"
         "{\n"
-        '  "document_type": "resume/contract/report/article/letter/other",\n'
-        '  "title": "descriptive title or subject of the document",\n'
-        '  "people": [{"name": "...", "role": "1-line description of who they are in this document"}],\n'
-        '  "organizations": [{"name": "...", "role": "1-line description of their relevance"}],\n'
-        '  "key_dates": [{"date": "...", "context": "what happened on this date"}],\n'
-        '  "highlights": ["most important fact 1", "most important fact 2", "..."]\n'
-        "}\n"
-        "For highlights: pick 3-5 of the most important facts, figures, or takeaways.\n"
-        "Return ONLY valid JSON."
+        '  "document_type": "what this document is",\n'
+        '  "title": "descriptive title or subject",\n'
+        '  "sections": [\n'
+        '    {"label": "Section Name", "items": [\n'
+        '      {"title": "Item name", "detail": "1-line description"}\n'
+        "    ]}\n"
+        "  ],\n"
+        '  "highlights": ["most important takeaway 1", "most important takeaway 2", "..."]\n'
+        "}\n\n"
+        "Rules:\n"
+        "- Section labels must be SPECIFIC to this document's content (not generic like 'Key Information' or 'Important Details').\n"
+        "- Only include a section if it has real, substantive items from the document.\n"
+        "- If an item's value is illegible, garbled, empty, unclear, or not stated — DO NOT include that item at all. Completely omit it. Never say 'not clearly captured', 'garbled', 'not recorded', or 'partially illegible'. If a section has no clean items left after removing unclear ones, drop the entire section.\n"
+        "- 3-5 sections, 2-6 items each, 3-5 highlights.\n"
+        "- Return ONLY the JSON object, no other text."
     )
     raw = run_agent(agent, prompt)
     return _parse_json(raw)
@@ -410,23 +439,21 @@ def generate_follow_up(context: str, history: list) -> str | None:
         return None
 
     agent = create_document_agent()
-    recent = history[-4:]
-    conv = "\n".join(
-        f"{'User' if r == 'user' else 'Assistant'}: {m[:300]}"
-        for r, m in recent
-    )
+
+    # All user questions — covers both "what's been discussed" and "what not to repeat"
+    all_user_questions = [msg for role, msg in history if role == "user"]
+    asked_list = "\n".join(f"- {q}" for q in all_user_questions)
 
     prompt = (
-        f"DOCUMENT:\n{context[:1500]}\n\n"
-        f"CONVERSATION:\n{conv}\n\n"
+        f"DOCUMENT:\n{context}\n\n"
+        f"QUESTIONS ALREADY ASKED:\n{asked_list}\n\n"
         "USER QUERY: Suggest exactly 1 short follow-up question based on the document.\n"
         "Rules:\n"
-        "- Look at the conversation: if the last 2+ exchanges are about the SAME topic "
-        "(e.g. all about charts, all about one person, all about technologies), "
-        "then suggest a question about a COMPLETELY DIFFERENT part of the document that hasn't been discussed yet.\n"
-        "- If the conversation has been short or varied, suggest a natural follow-up to the latest answer.\n"
+        "- Look at the questions already asked. If they are all about the SAME topic, "
+        "suggest a question about a COMPLETELY DIFFERENT part of the document.\n"
+        "- If the questions cover varied topics, suggest a natural follow-up to the last one.\n"
         "- The question must be about FACTS or DATA in the document — never about improving/editing the document.\n"
-        "- Do NOT repeat or rephrase any question the user already asked.\n"
+        "- Do NOT suggest anything similar to any question already asked. Check every single one.\n"
         "- Keep it under 15 words. Use 'the document', names, etc. — NOT 'I' or 'my'.\n"
         "Return ONLY the question text, nothing else. No quotes, no prefix."
     )
@@ -442,12 +469,6 @@ def generate_follow_up(context: str, history: list) -> str | None:
 # ================================================================
 #  FILE UPLOAD
 # ================================================================
-uploaded_file = st.file_uploader(
-    "Upload a document (.txt, .pdf, .docx)",
-    type=["txt", "pdf", "docx"],
-    key=f"uploader_{st.session_state.uploader_key}"
-)
-
 def _handle_new_doc(doc_id: str, filename: str):
     """Common state reset + auto-generate questions after upload."""
     st.session_state.documents[filename] = doc_id
@@ -463,6 +484,13 @@ def _handle_new_doc(doc_id: str, filename: str):
     with st.spinner("Generating suggested questions..."):
         st.session_state.suggested_questions = generate_suggested_questions(doc_id)
         st.session_state._questions_doc_id = doc_id
+
+
+uploaded_file = st.file_uploader(
+    "Upload a document (.txt, .pdf, .docx)",
+    type=["txt", "pdf", "docx"],
+    key=f"uploader_{st.session_state.uploader_key}"
+)
 
 
 if uploaded_file:
@@ -487,10 +515,15 @@ if uploaded_file:
                 st.session_state.uploader_key += 1
                 st.rerun()
     else:
-        text = cached_load_document(file_bytes, suffix)
-        doc_id = store.save_document(text, metadata={"filename": filename})
-        _handle_new_doc(doc_id, filename)
-        st.rerun()
+        try:
+            text = cached_load_document(file_bytes, suffix)
+            doc_id = store.save_document(text, metadata={"filename": filename})
+            _handle_new_doc(doc_id, filename)
+            st.rerun()
+        except ValueError as e:
+            st.error(f"Could not process '{filename}': {e}")
+        except Exception as e:
+            st.error(f"Failed to upload '{filename}': {e}")
 
 if st.session_state.upload_success_msg:
     st.success(st.session_state.upload_success_msg)
@@ -501,9 +534,6 @@ if st.session_state.upload_success_msg:
 #  DOCUMENT SELECTOR
 # ================================================================
 if st.session_state.documents:
-    st.divider()
-    st.subheader("Select Active Document")
-
     filenames = list(st.session_state.documents.keys())
     active_name = None
     for name, did in st.session_state.documents.items():
@@ -529,7 +559,7 @@ if st.session_state.documents:
     else:
         st.session_state.active_doc = new_doc_id
 
-    if st.button("Delete selected document"):
+    if st.button("Delete selected document", type="secondary"):
         store.delete_document(st.session_state.active_doc)
         del st.session_state.documents[selected]
         st.session_state.active_doc = (
@@ -560,6 +590,11 @@ if (st.session_state.active_doc
 # ================================================================
 #  SIDEBAR — Document Insights (button-triggered)
 # ================================================================
+with st.sidebar:
+    st.markdown("#### Document Insights")
+    st.caption("Key information and highlights from your document")
+    st.divider()
+
 if st.session_state.active_doc:
     with st.sidebar:
         current_filename = "Document"
@@ -571,9 +606,8 @@ if st.session_state.active_doc:
         insights = st.session_state.doc_insights
 
         if not insights:
-            st.markdown(f"### {current_filename}")
-            st.caption("Click below to extract key insights")
-            st.divider()
+            st.markdown(f"**{current_filename}**")
+            st.caption("Click below to extract key insights from this document")
             if st.button("Analyze Document", use_container_width=True):
                 with st.spinner("Analyzing document..."):
                     st.session_state.doc_insights = generate_doc_insights(
@@ -582,43 +616,30 @@ if st.session_state.active_doc:
                     st.session_state._analyzed_doc_id = st.session_state.active_doc
                 st.rerun()
         else:
-            st.markdown(f"### {current_filename}")
+            st.markdown(f"**{current_filename}**")
             doc_type = insights.get("document_type") or "document"
             title = insights.get("title") or ""
             st.caption(f"{doc_type.upper()}{'  |  ' + title if title else ''}")
 
-            st.divider()
-
-            people = insights.get("people") or []
-            orgs = insights.get("organizations") or []
-            dates = insights.get("key_dates") or []
+            sections = insights.get("sections") or []
             highlights = insights.get("highlights") or []
 
-            if people:
-                with st.expander(f"People  ({len(people)})", expanded=False):
-                    for p in people:
-                        if isinstance(p, dict):
-                            st.markdown(f"**{p.get('name', '')}**")
-                            st.caption(p.get("role", ""))
-                        else:
-                            st.markdown(f"- {p}")
-
-            if orgs:
-                with st.expander(f"Organizations  ({len(orgs)})", expanded=False):
-                    for o in orgs:
-                        if isinstance(o, dict):
-                            st.markdown(f"**{o.get('name', '')}**")
-                            st.caption(o.get("role", ""))
-                        else:
-                            st.markdown(f"- {o}")
-
-            if dates:
-                with st.expander(f"Key Dates  ({len(dates)})", expanded=False):
-                    for d in dates:
-                        if isinstance(d, dict):
-                            st.markdown(f"**{d.get('date', '')}** — {d.get('context', '')}")
-                        else:
-                            st.markdown(f"- {d}")
+            for section in sections:
+                if not isinstance(section, dict):
+                    continue
+                label = section.get("label", "")
+                items = section.get("items") or []
+                if not label or not items:
+                    continue
+                with st.expander(f"{label}  ({len(items)})", expanded=False):
+                    for item in items:
+                        if isinstance(item, dict):
+                            st.markdown(f"**{item.get('title', '')}**")
+                            detail = item.get("detail", "")
+                            if detail:
+                                st.caption(detail)
+                        elif isinstance(item, str):
+                            st.markdown(f"- {item}")
 
             if highlights:
                 with st.expander("Key Highlights", expanded=True):
@@ -631,6 +652,9 @@ if st.session_state.active_doc:
 # ================================================================
 st.divider()
 st.subheader("Chat with your document")
+
+if not st.session_state.active_doc:
+    st.info("Upload a document above to start chatting.")
 
 if st.session_state.active_doc:
 
@@ -672,25 +696,22 @@ if st.session_state.active_doc:
         if not pending:
             st.session_state.chat_history.append(("user", active_query))
 
-        context = store.search(
-            query=active_query,
-            doc_id=st.session_state.active_doc,
-            top_k=10
-        )
+        with st.spinner("Thinking..."):
+            # Tool-based agent — it fetches its own context from the document
+            agent = create_tool_agent(st.session_state.active_doc, store)
+            input_msg = build_chat_input(
+                active_query, st.session_state.chat_history[:-1]
+            )
+            content = run_agent(agent, input_msg)
 
-        agent = create_document_agent()
-        input_msg = build_chat_input(
-            context, active_query, st.session_state.chat_history[:-1]
-        )
-        content = run_agent(agent, input_msg)
+            if not content:
+                content = "Sorry, I couldn't process that query. Please try rephrasing your question."
 
-        if not content:
-            content = "Sorry, I couldn't process that query. Please try rephrasing your question."
+            st.session_state.chat_history.append(("assistant", content))
 
-        st.session_state.chat_history.append(("assistant", content))
-
-        # Generate follow-up suggestion
-        follow_up = generate_follow_up(context, st.session_state.chat_history)
-        st.session_state.follow_up = follow_up
+            # Generate follow-up suggestion (full text so agent can pivot to unexplored topics)
+            full_text = store.get_full_text(st.session_state.active_doc)
+            follow_up = generate_follow_up(full_text, st.session_state.chat_history)
+            st.session_state.follow_up = follow_up
 
         st.rerun()

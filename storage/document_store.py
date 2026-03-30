@@ -32,7 +32,7 @@ class DocumentStore:
                 )
             )
 
-            # ✅ Create payload index AFTER collection exists
+            # Create payload index after collection exists
             self.client.create_payload_index(
                 collection_name=self.COLLECTION_NAME,
                 field_name="filename",
@@ -45,9 +45,6 @@ class DocumentStore:
                 field_schema="keyword"
             )
 
-
-
-    # ---------------- NEW ----------------
     def list_documents(self) -> dict:
         """
         Returns { filename: doc_id } for all indexed documents.
@@ -112,7 +109,7 @@ class DocumentStore:
 
         # There should be exactly ONE doc_id per filename
         return next(iter(doc_ids))
-    # ---------------- EXISTING ----------------
+
     def save_document(self, text: str, metadata: dict | None = None) -> str:
         doc_id = str(uuid.uuid4())
         chunks = chunk_text(text)
@@ -164,7 +161,7 @@ class DocumentStore:
                 texts.append(p.payload["text"])
 
         return "\n".join(texts)
-    
+
     def get_full_text(self, doc_id: str) -> str:
         """
         Returns the full document text by fetching all chunks in order.

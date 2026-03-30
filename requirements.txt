@@ -7,5 +7,6 @@ python-dotenv
 python-docx
 PyPDF2
 plotly
+pandas
 pytesseract
 pdf2image

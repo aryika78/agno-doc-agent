@@ -13,7 +13,7 @@ An **agentic document AI assistant** built using **Agno**, **Streamlit**, **Qdra
 * **Conversation memory** — agent remembers the last 4 exchanges for context (resolves pronouns, references)
 * **Suggested questions** — auto-generated on upload/document switch, diverse and content-focused
 * **Follow-up suggestions** — auto-generated after each response, with topic-exhaustion detection
-* **Document insights sidebar** — one-click deep analysis (people, organizations, key dates, highlights)
+* **Document insights sidebar** — one-click deep analysis with adaptive sections based on document type
 * **Multi-intent queries** (e.g. "summarize and extract entities") — handled naturally in one response
 * **RAG guardrails** — agent refuses to chart or answer when data isn't in the document
 * Qdrant-backed **persistent vector storage** (no duplicate indexing)
@@ -52,6 +52,7 @@ AGNO_DOC_AGENT/
 ├── app.py                          # Streamlit application (chat, charts, insights, suggestions)
 ├── document_loader.py              # PDF/DOCX/TXT loader with OCR fallback
 ├── requirements.txt
+├── .env.example                    # Environment variable template
 ├── README.md
 └── .gitignore
 ```
@@ -63,16 +64,18 @@ AGNO_DOC_AGENT/
 ```
 User Query
     ↓
-DocumentStore.search() → retrieves top 10 relevant chunks from Qdrant
+build_chat_input() → adds conversation history to the query
     ↓
-build_chat_input() → combines document context + conversation history + query
+Tool Agent (gpt-5-nano) → decides what context it needs
     ↓
-Agno Agent (gpt-5-nano) → reads context, responds (text, JSON, or chart JSON)
+Calls search_document() or get_full_text() → retrieves from Qdrant
     ↓
-render_message() → detects response type and renders (markdown, JSON block, or Plotly chart)
+Agent generates response (text, JSON, or chart JSON)
+    ↓
+render_message() → renders as markdown, JSON block, or Plotly chart
 ```
 
-One LLM call per query. The agent's instructions cover QA, summarization, entity extraction, visualizations, and JSON output. The LLM decides what to do based on the query.
+The agent is **agentic** — it decides what to retrieve from the document using its tools, rather than receiving pre-fetched context. It can search multiple times if needed. The agent's instructions cover QA, summarization, entity extraction, visualizations, and JSON output.
 
 ---
 
@@ -103,12 +106,13 @@ pip install -r requirements.txt
 
 - Download from [UB-Mannheim/tesseract releases](https://github.com/UB-Mannheim/tesseract/releases)
 - Install to default path: `C:\Program Files\Tesseract-OCR`
+- Set the `TESSERACT_CMD` in your `.env` file if not on PATH (see `.env.example`)
 
 ### 5) Install Poppler (for scanned PDF support)
 
 - Download from [poppler-windows releases](https://github.com/oschwartz10612/poppler-windows/releases)
 - Extract and note the path to the `Library\bin` folder
-- Update the `POPPLER_PATH` in `document_loader.py` if your path differs
+- Set the `POPPLER_PATH` in your `.env` file (see `.env.example`)
 
 ### 6) Start Qdrant
 
@@ -118,10 +122,14 @@ docker run -p 6333:6333 qdrant/qdrant
 
 ### 7) Create `.env`
 
+Copy `.env.example` to `.env` and fill in your values:
+
 ```
 AZURE_OPENAI_API_KEY=your_key_here
 AZURE_OPENAI_ENDPOINT=https://your-resource-name.cognitiveservices.azure.com
 DEPLOYMENT_REASONING=your_5_nano_deployment
+TESSERACT_CMD=C:\Program Files\Tesseract-OCR\tesseract.exe
+POPPLER_PATH=C:\path\to\poppler\Library\bin
 ```
 
 ---
