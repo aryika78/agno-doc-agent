@@ -5,7 +5,7 @@ __pycache__/
 .env
 *.pdf
 *.docx
-
+__pycache__
 sample_*.txt
 temp_doc
 
