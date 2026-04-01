@@ -12,7 +12,7 @@ from storage.document_store import DocumentStore
 
 
 st.set_page_config(
-    page_title="Document AI Assistant",
+    page_title="Agno Doc Agent",
     page_icon=":page_facing_up:",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -43,7 +43,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Document AI Assistant")
+st.title("Agno Doc Agent")
 st.caption("Upload a document, then chat with it — ask questions, get summaries, extract entities, or visualize data.")
 
 # ---------------- DOCUMENT STORE ----------------
