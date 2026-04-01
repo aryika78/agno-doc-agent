@@ -1,2 +1,3 @@
-[server]
-showDeployButton = false
+[client]
+showSidebarNavigation = false
+toolbarMode = "minimal"

@@ -421,6 +421,7 @@ def generate_doc_insights(doc_id: str) -> dict | None:
         "}\n\n"
         "Rules:\n"
         "- Section labels must be SPECIFIC to this document's content (not generic like 'Key Information' or 'Important Details').\n"
+        "- Section labels must use normal spaces, NOT underscores (e.g. 'Publication Overview' not 'Publication_Overview').\n"
         "- Only include a section if it has real, substantive items from the document.\n"
         "- If an item's value is illegible, garbled, empty, unclear, or not stated — DO NOT include that item at all. Completely omit it. Never say 'not clearly captured', 'garbled', 'not recorded', or 'partially illegible'. If a section has no clean items left after removing unclear ones, drop the entire section.\n"
         "- 3-5 sections, 2-6 items each, 3-5 highlights.\n"
@@ -627,7 +628,7 @@ if st.session_state.active_doc:
             for section in sections:
                 if not isinstance(section, dict):
                     continue
-                label = section.get("label", "")
+                label = section.get("label", "").replace("_", " ")
                 items = section.get("items") or []
                 if not label or not items:
                     continue
